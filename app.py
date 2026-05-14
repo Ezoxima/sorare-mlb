@@ -622,8 +622,8 @@ def show_player_chart(player_slug: str, player_name: str, stat: str, stat_label:
 def _check_password() -> bool:
     try:
         pwd = st.secrets["APP_PASSWORD"]
-    except (AttributeError, KeyError):
-        return True  # pas de mot de passe configuré → accès libre en local
+    except Exception:
+        return True  # pas de secrets configurés → accès libre en local
     if st.session_state.get("_authenticated"):
         return True
     with st.form("login"):
