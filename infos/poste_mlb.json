@@ -1,0 +1,35 @@
+{
+    "position": [
+        "baseball_relief_pitcher",
+        "baseball_catcher",
+        "baseball_third_base",
+        "baseball_starting_pitcher",
+        "baseball_shortstop",
+        "baseball_outfield",
+        "baseball_second_base",
+        "baseball_first_base",
+        "baseball_designated_hitter"
+    ],
+    "exact_position": [
+        "RP",
+        "C",
+        "3B",
+        "SP",
+        "SS",
+        "OF",
+        "2B",
+        "1B",
+        "DH"
+    ],
+    "agg_position": [
+        "RP",
+        "MI",
+        "CI",
+        "SP",
+        "MI",
+        "OF",
+        "MI",
+        "CI",
+        "CI"
+    ]
+}

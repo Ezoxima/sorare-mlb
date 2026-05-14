@@ -1,0 +1,72 @@
+
+
+
+{{
+  user(slug: "ezox") {{
+    slug
+    nickname
+    cards(
+      sport: BASEBALL
+      rarities: [limited, rare, super_rare, unique]
+      after: "{endCursor}"
+    ) {{
+      nodes {{
+        ... on BaseballCard {{
+          slug
+          name
+          rarityTyped
+          displayRarity
+          grade
+          xp
+          xpNeededForCurrentGrade
+          xpNeededForNextGrade
+          power
+          inSeasonEligible
+          baseballPlayer {{
+            slug
+            displayName
+            age
+            activeClub {{
+              slug
+            }}
+            nextGame {{
+              date
+              competition {{
+                slug
+                displayName
+              }}
+              homeTeam {{
+                slug
+                ... on Club {{
+                  slug
+                  name
+                }}
+                ... on NationalTeam {{
+                  slug
+                  name
+                }}
+              }}
+              awayTeam {{
+                slug
+                ... on Club {{
+                  slug
+                  name
+                }}
+                ... on NationalTeam {{
+                  slug
+                  name
+                }}
+              }}
+            }}
+          }}
+          sealed
+          anyPositions
+        }}
+      }}
+      pageInfo {{
+        endCursor
+        hasNextPage
+      }}
+    }}
+  }}
+}}

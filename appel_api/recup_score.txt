@@ -1,0 +1,36 @@
+{
+  anyPlayer(slug: "aaron-judge-19920426") {
+    ... on BaseballPlayer {
+      slug
+      allPlayerGameScores(after: "") {
+        nodes {
+          position
+          score
+          detailedScore {
+            category
+            points
+            stat
+            statTyped {
+              shortName
+            }
+            statValue
+            totalScore
+          }
+          anyPlayerGameStats {
+            playedInGame
+          }
+          anyGame {
+            date
+            so5Fixture {
+              gameWeek
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}

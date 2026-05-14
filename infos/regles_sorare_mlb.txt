@@ -1,0 +1,61 @@
+3 types de compétitions : 
+
+CHAMPIONS : Maximum 3 équipes
+Mode de jeu qui se joue contre d'autres managers. 
+
+Tu peux retrouver dans l'api sorare les récompenses en fonction du classement. 
+C'est probablement dans les leaderbords, mais je n'ai pas construit la requete
+
+- 7 joueurs d'une même rareté (limited, rare, super_rare, unique)
+- Minimum 6 In In-Season
+- Maximum 6 joueurs d'un même club dans une équipe
+- Contraintes de constructions d'équipe : 
+    - 1 SP
+    - 1 RP 
+    - 1 CI 
+    - 1 MI
+    - 1 OF
+    - 1 (Choix entre CI / MI et OF)
+    - 1 Libre (Peut être n'importe quelle position)
+
+
+
+HOT STREAK : Pas de limite d'équipes
+Jouer contre le jeu. Il faut atteindre un certain score pour remporter des récompenses.
+
+Tu peux retrouver dans l'api sorare les récompenses en fonction du score de l'équipe
+C'est probablement dans les leaderbords, mais je n'ai pas construit la requete
+
+- 7 joueurs d'une même rareté (limited, rare, super_rare, unique)
+- Minimum 6 In In-Season
+- Maximum 6 joueurs d'un même club dans une équipe
+- Contraintes de constructions d'équipe : 
+    - 1 SP
+    - 1 RP 
+    - 1 CI 
+    - 1 MI
+    - 1 OF
+    - 1 (Choix entre CI / MI et OF)
+    - 1 Libre (Peut être n'importe quelle position)
+    
+
+CHALLENGER : Maximum 3 équipes
+Mode de jeu qui se joue contre d'autres managers. 
+
+Tu peux retrouver dans l'api sorare les récompenses en fonction du classement. 
+C'est probablement dans les leaderbords, mais je n'ai pas construit la requete
+
+- 7 joueurs d'une même rareté (limited, rare, super_rare, unique)
+- Pas de contraintes sur les in-season. On peut mettre des joueurs de n'importe quelle saison.
+- Maximum 6 joueurs d'un même club dans une équipe
+- Contraintes de constructions d'équipe : 
+    - 1 SP
+    - 1 RP 
+    - 1 CI 
+    - 1 MI
+    - 1 OF
+    - 1 (Choix entre CI / MI et OF)
+    - 1 Libre (Peut être n'importe quelle position)
+
+
+

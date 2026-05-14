@@ -1,0 +1,68 @@
+### Récupérer la liste des matchs et les infos
+{
+  so5 {
+    so5Fixture(
+      sport: BASEBALL
+      slug: "ef59cd64-c60b-4191-846f-31662685659e"
+      eventType: CLASSIC
+    ) {
+      slug
+      anyGames {
+        ... on GameOfBaseball {
+          id
+          date
+          homeTeam {
+            slug
+            name
+          }
+          awayTeam {
+            slug
+            name
+          }
+          awayHits
+          awayErrors
+          awayProbablePitcher {
+            slug
+          }
+          awayScore
+          competition {
+            slug
+            name
+          }
+          homeErrors
+          homeHits
+          homeProbablePitcher {
+            slug
+          }
+          homeScore
+          inning {
+            number
+          }
+          losingPitcher {
+            slug
+          }
+          probablePitchers {
+            slug
+          }
+          scored
+          scoresByInning {
+            awayScore
+            homeScore
+            periodNumber
+          }
+          statusTyped
+          venue
+          venueTyped {
+            id
+          }
+          winner {
+            slug
+          }
+          winningPitcher {
+            slug
+          }
+        }
+      }
+    }
+  }
+}
