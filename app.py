@@ -617,6 +617,30 @@ def show_player_chart(player_slug: str, player_name: str, stat: str, stat_label:
     st.caption(f"{n_played} matchs joués · {sum(is_dnp)} DNP sur les {len(df_hist)} derniers matchs")
 
 
+# ── Authentification ───────────────────────────────────────────────────────────
+
+def _check_password() -> bool:
+    try:
+        pwd = st.secrets["APP_PASSWORD"]
+    except (AttributeError, KeyError):
+        return True  # pas de mot de passe configuré → accès libre en local
+    if st.session_state.get("_authenticated"):
+        return True
+    with st.form("login"):
+        st.markdown("### ⚾ Sorare MLB")
+        entered = st.text_input("Mot de passe", type="password")
+        submitted = st.form_submit_button("Connexion")
+    if submitted:
+        if entered == pwd:
+            st.session_state["_authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Mot de passe incorrect.")
+    return False
+
+if not _check_password():
+    st.stop()
+
 # ── Chargement ─────────────────────────────────────────────────────────────────
 
 df_all      = load_data()
