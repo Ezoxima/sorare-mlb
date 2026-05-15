@@ -113,7 +113,7 @@ def _api_key() -> str:
     """Retourne l'API key Sorare — st.secrets en cloud, .env en local."""
     try:
         return st.secrets["API_KEY"]
-    except (AttributeError, KeyError):
+    except Exception:
         env_path = Path(__file__).parent / ".." / ".env"
         load_dotenv(dotenv_path=env_path)
         return os.getenv("API_KEY", "")
@@ -678,13 +678,7 @@ with st.sidebar:
     sel_stat_label   = st.selectbox("Statistique", stat_labels_list)
     sel_stat         = stat_keys_list[stat_labels_list.index(sel_stat_label)]
 
-    _stat_desc = sel_stat.replace("_", " ").title()
-    _col_desc, _col_fen = st.columns([1.2, 1.8])
-    with _col_desc:
-        st.caption("Stat sélectionnée")
-        st.markdown(f"**{sel_stat_label}** — {_stat_desc}")
-    with _col_fen:
-        fenetre = st.radio("Fenêtre", list(FENETRE_OPTIONS.keys()), index=1, horizontal=True)
+    fenetre = st.radio("Fenêtre", list(FENETRE_OPTIONS.keys()), index=1, horizontal=True)
 
     target = st.number_input(
         "🎯 Objectif", min_value=0.0, value=0.0, step=0.5,
@@ -813,7 +807,13 @@ with tab1:
     st.caption(f"📅 {date_label} — matchs pas encore commencés")
 
     col_m1, col_m2, col_m3 = st.columns(3)
-    col_m1.metric("Stat", sel_stat_label)
+    with col_m1:
+        st.markdown(
+            f"<div style='font-size:0.875rem;color:rgba(49,51,63,.6);margin-bottom:4px'>Stat</div>"
+            f"<div style='font-size:2rem;font-weight:700;line-height:1.2'>{sel_stat_label}"
+            f"<span style='font-size:1.2rem;font-weight:400'> — {sel_stat.replace('_', ' ').title()}</span></div>",
+            unsafe_allow_html=True
+        )
     col_m2.metric("Fenêtre", fenetre)
     col_m3.metric("Joueurs aujourd'hui", len(df_today))
 
