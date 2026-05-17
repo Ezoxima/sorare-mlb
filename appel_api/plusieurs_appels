@@ -1,68 +1,76 @@
-### Récupérer la liste des matchs et les infos
+/* Infos par Competition de jeu (Leaderboards) pour une GW donnée */
+/* C'est le slug qui permet de récupérer plus d'infos */
 {
   so5 {
-    so5Fixture(
-      sport: BASEBALL
-      slug: "ef59cd64-c60b-4191-846f-31662685659e"
-      eventType: CLASSIC
-    ) {
-      slug
-      anyGames {
-        ... on GameOfBaseball {
+    so5Fixture(id: "caf86ab9-a9fd-45e6-8345-04c7758b833b") {
+      id
+      gameWeek
+      so5Leaderboards {
+        slug
+        displayName
+        rarityType
+        id
+        isArena
+        rulesSummary
+        so5LeaderboardType
+        displayedTypedRules {
+          descriptions {
+            title
+          }
+        }
+        rewardedLineupsCount        
+      }
+    }
+  }
+}
+
+
+Appel api par leaderboard : 
+{
+  so5 {
+    so5Leaderboard(slug: "baseball-11-15-may-2026-mlb_limited_arena-41180aa5-4f49-461e-b2b7-bc10956945cf") {
+      id
+      rewardsConfig {
+        ranking {
+          fromSo5Ranking {
+            overallScore
+          }
           id
-          date
-          homeTeam {
-            slug
-            name
-          }
-          awayTeam {
-            slug
-            name
-          }
-          awayHits
-          awayErrors
-          awayProbablePitcher {
-            slug
-          }
-          awayScore
-          competition {
-            slug
-            name
-          }
-          homeErrors
-          homeHits
-          homeProbablePitcher {
-            slug
-          }
-          homeScore
-          inning {
-            number
-          }
-          losingPitcher {
-            slug
-          }
-          probablePitchers {
-            slug
-          }
-          scored
-          scoresByInning {
-            awayScore
-            homeScore
-            periodNumber
-          }
-          statusTyped
-          venue
-          venueTyped {
+          rewardConfigs {
             id
-          }
-          winner {
-            slug
-          }
-          winningPitcher {
-            slug
+            ... on MonetaryRewardConfig {
+              amount {
+                usdCents
+              }
+            }
+            ... on CardShardRewardConfig {
+              configRarity
+              quantity
+            }
           }
         }
       }
     }
   }
 }
+
+Pour les rewards hot_streak, par rareté (Pas besoin de les regarder dans l'appel api pour les hot_streak (elles finissent par PVE)): 
+rarete;score;shard;bonus_shard
+limited;175;500;250
+limited;200;1500;750
+limited;225;3000;1500
+limited;250;6000;2500
+limited;275;10000;5000
+rare;175;200;250;125
+rare;230;1000;500
+rare;250;2000;1000
+rare;270;4000;2000
+rare;290;8000;4000
+super_rare;220;250;125
+super_rare;245;500;250
+super_rare;260;1000;500
+super_rare;290;2000;1000
+super_rare;315;5000;2500
+
+bonus shard c'est pour chaque équipe supplémentaire qui atteint le score nécessaire
+

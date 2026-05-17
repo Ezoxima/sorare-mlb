@@ -148,6 +148,36 @@ def load_card_prices() -> pd.DataFrame:
     return df
 
 
+@st.cache_data(ttl=3600)
+def load_leaderboard_rewards() -> pd.DataFrame:
+    p = _DATA_DIR / "leaderboard_rewards.parquet"
+    if not p.exists():
+        return pd.DataFrame()
+    df = pd.read_parquet(p)
+    for col in ("score_threshold", "reward_quantity", "reward_usd_cents"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    if "gw_int" in df.columns:
+        df["gw_int"] = pd.to_numeric(df["gw_int"], errors="coerce")
+    return df
+
+
+@st.cache_data(ttl=3600)
+def load_ml_predictions() -> pd.DataFrame:
+    p = _DATA_DIR / "ml_predictions.parquet"
+    if not p.exists():
+        return pd.DataFrame()
+    df = pd.read_parquet(p)
+    df["pred_median"] = pd.to_numeric(df["pred_median"], errors="coerce")
+    df["pred_lo"]     = pd.to_numeric(df["pred_lo"],     errors="coerce")
+    df["pred_hi"]     = pd.to_numeric(df["pred_hi"],     errors="coerce")
+    if "n_games_gw" not in df.columns:
+        df["n_games_gw"] = None
+    else:
+        df["n_games_gw"] = pd.to_numeric(df["n_games_gw"], errors="coerce")
+    return df
+
+
 _SORARE_API = "https://api.sorare.com/graphql"
 
 
@@ -646,6 +676,8 @@ if not _check_password():
 df_all      = load_data()
 df_calendar = load_calendar()
 df_prices   = load_card_prices()
+df_ml       = load_ml_predictions()
+df_lb       = load_leaderboard_rewards()
 
 now_utc    = pd.Timestamp.now(tz="UTC")
 now_paris  = now_utc.astimezone(PARIS_TZ)
@@ -785,10 +817,22 @@ except Exception:
 
 df_today["is_pp"] = df_today["player_slug"].isin(_pp_slugs)
 
+# Predictions ML
+if not df_ml.empty:
+    _ml_mgr = df_ml[df_ml["gallery_manager"] == sel_manager].drop_duplicates("player_slug")
+    _ml_map = _ml_mgr.set_index("player_slug")[["pred_median","pred_lo","pred_hi"]]
+    df_today["pred_median"] = df_today["player_slug"].map(_ml_map["pred_median"])
+    df_today["pred_lo"]     = df_today["player_slug"].map(_ml_map["pred_lo"])
+    df_today["pred_hi"]     = df_today["player_slug"].map(_ml_map["pred_hi"])
+else:
+    df_today["pred_median"] = float("nan")
+    df_today["pred_lo"]     = float("nan")
+    df_today["pred_hi"]     = float("nan")
+
 # ── Tabs ────────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-    "🏆 Ma galerie",
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+    "🏆 Défis journaliers",
     "📅 Calendrier",
     "💰 Mes cartes",
     "🔍 Base de données",
@@ -796,6 +840,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "⚔️ Vis-à-vis",
     "📈 Projections GW",
     "🏗️ Équipe",
+    "🎖️ Compétitions",
 ])
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -822,54 +867,53 @@ with tab1:
             "Aucun joueur de ta galerie ne joue aujourd'hui, "
             "ou tous les matchs du jour ont déjà commencé."
         )
-        st.stop()
+    else:
+        st.subheader("🥇 Suggestion d'alignement")
+        top3      = df_today.head(3)
+        top3_cols = st.columns(len(top3))
+        for i, ((_, row), col) in enumerate(zip(top3.iterrows(), top3_cols)):
+            with col:
+                st.markdown(render_player_card(i, row, sel_stat_label), unsafe_allow_html=True)
+                if st.button("📊 Historique", key=f"hist_top_{i}", use_container_width=True):
+                    show_player_chart(row["player_slug"], row["player_name"],
+                                      sel_stat, sel_stat_label, target)
 
-    st.subheader("🥇 Suggestion d'alignement")
-    top3      = df_today.head(3)
-    top3_cols = st.columns(len(top3))
-    for i, ((_, row), col) in enumerate(zip(top3.iterrows(), top3_cols)):
-        with col:
-            st.markdown(render_player_card(i, row, sel_stat_label), unsafe_allow_html=True)
-            if st.button("📊 Historique", key=f"hist_top_{i}", use_container_width=True):
+        st.divider()
+        st.subheader(f"📊 Classement du jour — {len(df_today)} joueur(s)")
+        st.caption("Clique sur une ligne pour voir l'historique du joueur.")
+
+        df_today["_is_lbl"] = df_today["in_season_eligible"].map(
+            lambda v: "IS" if v is True else ("OOS" if v is False else "—")
+        )
+        df_today["_pp_lbl"] = df_today["is_pp"].map(lambda v: "PP" if v else "")
+
+        table = df_today[[
+            "player_name", "position_exact", "card_display_rarity",
+            "_is_lbl", "_pp_lbl", "moyenne", "nb_matchs", "coup_envoi", "matchup",
+        ]].rename(columns={
+            "player_name":         "Joueur",
+            "position_exact":      "Poste",
+            "card_display_rarity": "Rareté",
+            "_is_lbl":             "Saison",
+            "_pp_lbl":             "PP",
+            "moyenne":             sel_stat_label,
+            "nb_matchs":           "Matchs",
+            "coup_envoi":          "Heure (UTC)",
+            "matchup":             "Adversaire",
+        })
+
+        event = st.dataframe(table, use_container_width=True, hide_index=True,
+                             on_select="rerun", selection_mode="single-row")
+        sel_rows = event.selection.rows
+        if sel_rows:
+            idx = sel_rows[0]
+            if st.session_state.get("_tab1_sel") != idx:
+                st.session_state["_tab1_sel"] = idx
+                row = df_today.iloc[idx]
                 show_player_chart(row["player_slug"], row["player_name"],
                                   sel_stat, sel_stat_label, target)
-
-    st.divider()
-    st.subheader(f"📊 Classement du jour — {len(df_today)} joueur(s)")
-    st.caption("Clique sur une ligne pour voir l'historique du joueur.")
-
-    df_today["_is_lbl"] = df_today["in_season_eligible"].map(
-        lambda v: "IS" if v is True else ("OOS" if v is False else "—")
-    )
-    df_today["_pp_lbl"] = df_today["is_pp"].map(lambda v: "PP" if v else "")
-
-    table = df_today[[
-        "player_name", "position_exact", "card_display_rarity",
-        "_is_lbl", "_pp_lbl", "moyenne", "nb_matchs", "coup_envoi", "matchup",
-    ]].rename(columns={
-        "player_name":         "Joueur",
-        "position_exact":      "Poste",
-        "card_display_rarity": "Rareté",
-        "_is_lbl":             "Saison",
-        "_pp_lbl":             "PP",
-        "moyenne":             sel_stat_label,
-        "nb_matchs":           "Matchs",
-        "coup_envoi":          "Heure (UTC)",
-        "matchup":             "Adversaire",
-    })
-
-    event = st.dataframe(table, use_container_width=True, hide_index=True,
-                         on_select="rerun", selection_mode="single-row")
-    sel_rows = event.selection.rows
-    if sel_rows:
-        idx = sel_rows[0]
-        if st.session_state.get("_tab1_sel") != idx:
-            st.session_state["_tab1_sel"] = idx
-            row = df_today.iloc[idx]
-            show_player_chart(row["player_slug"], row["player_name"],
-                              sel_stat, sel_stat_label, target)
-    else:
-        st.session_state.pop("_tab1_sel", None)
+        else:
+            st.session_state.pop("_tab1_sel", None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1619,6 +1663,16 @@ with tab7:
                     "game_date":    gdt,
                 })
 
+        # Map ML predictions pour cette GW
+        _ml7: dict = {}
+        if not df_ml.empty:
+            _ml7 = (
+                df_ml[df_ml["gallery_manager"] == sel_manager]
+                .drop_duplicates("player_slug")
+                .set_index("player_slug")[["pred_median","pred_lo","pred_hi"]]
+                .to_dict("index")
+            )
+
         # Calcul des projections
         proj7 = []
 
@@ -1637,38 +1691,89 @@ with tab7:
                     total += score
                     nb_g  += 1
                     parts.append(f"{src}{score:.1f} vs {gm['opp_name']}")
+
+            ml_d   = _ml7.get(h_slug)
+            ml_med = round(ml_d["pred_median"] * nb_g, 1) if ml_d and nb_g > 0 else None
+            import math as _math
+            hw     = ((ml_d["pred_hi"] - ml_d["pred_lo"]) / 2 * _math.sqrt(nb_g)
+                      if ml_d and nb_g > 0 else None)
+            ml_lo  = round(ml_med - hw, 1) if ml_med is not None else None
+            ml_hi  = round(ml_med + hw, 1) if ml_med is not None else None
+
             proj7.append({
-                "player_slug":       h_slug,
-                "player_name":       row["player_name"],
-                "rarity":            row["card_display_rarity"] or "",
-                "position":          row["position_exact"] or row["position_agg"] or "?",
+                "player_slug":        h_slug,
+                "player_name":        row["player_name"],
+                "rarity":             row["card_display_rarity"] or "",
+                "position":           row["position_exact"] or row["position_agg"] or "?",
                 "in_season_eligible": row["in_season_eligible"],
-                "category":          "Hitter",
-                "nb_games":          nb_g,
-                "projected_score":   round(total, 1) if nb_g > 0 else None,
-                "breakdown":         "  ·  ".join(parts) if parts else "—",
+                "category":           "Hitter",
+                "nb_games":           nb_g,
+                "projected_score":    round(total, 1) if nb_g > 0 else None,
+                "breakdown":          "  ·  ".join(parts) if parts else "—",
+                "ml_pred":            ml_med,
+                "ml_lo":              ml_lo,
+                "ml_hi":              ml_hi,
             })
 
         for _, row in _gal_sp7.iterrows():
             ps    = row["player_slug"]
             score = pavg7.get(ps)
+            ml_d  = _ml7.get(ps)
             proj7.append({
-                "player_slug":       ps,
-                "player_name":       row["player_name"],
-                "rarity":            row["card_display_rarity"] or "",
-                "position":          "SP",
+                "player_slug":        ps,
+                "player_name":        row["player_name"],
+                "rarity":             row["card_display_rarity"] or "",
+                "position":           "SP",
                 "in_season_eligible": row["in_season_eligible"],
-                "category":          "SP",
-                "nb_games":          1 if score is not None else 0,
-                "projected_score":   round(float(score), 1) if score is not None else None,
-                "breakdown":         f"~{score:.1f} moy 5 derniers" if score else "—",
+                "category":           "SP",
+                "nb_games":           1 if score is not None else 0,
+                "projected_score":    round(float(score), 1) if score is not None else None,
+                "breakdown":          f"~{score:.1f} moy 5 derniers" if score else "—",
+                "ml_pred":            ml_d["pred_median"] if ml_d else None,
+                "ml_lo":              ml_d["pred_lo"]     if ml_d else None,
+                "ml_hi":              ml_d["pred_hi"]     if ml_d else None,
             })
 
-        df7 = (
-            pd.DataFrame(proj7)
-            .sort_values("projected_score", ascending=False, na_position="last")
-            .reset_index(drop=True)
+        df7 = pd.DataFrame(proj7)
+
+        # ── Extension : tous les joueurs de la GW (via ML) ───────────────────
+        import math as _math7
+        _show_all7 = st.checkbox(
+            "Charger les données de tous les joueurs", value=False, key="proj7_all"
         )
+        if _show_all7 and not df_ml.empty:
+            _already7 = set(df7["player_slug"]) if not df7.empty else set()
+            _extra7   = []
+            for _, _mr7 in df_ml.iterrows():   # TOUS les joueurs, pas seulement la galerie
+                _s7 = _mr7["player_slug"]
+                if _s7 in _already7:
+                    continue
+                _pos7  = str(_mr7.get("position", ""))
+                _isp7  = _pos7 in ("SP", "RP",
+                                   "baseball_starting_pitcher",
+                                   "baseball_relief_pitcher")
+                _ng7   = int(_mr7.get("n_games_gw") or 0)
+                _mu7_  = float(_mr7["pred_median"] or 0)
+                _mm7   = round(_mu7_ * _ng7, 1) if _ng7 > 0 else None
+                _hw7   = (float(_mr7["pred_hi"]) - float(_mr7["pred_lo"])) / 2
+                _hw7g  = _hw7 * _math7.sqrt(_ng7) if _ng7 > 0 else _hw7
+                _in_gal7 = pd.notna(_mr7.get("gallery_manager"))
+                _extra7.append({
+                    "player_slug":        _s7,
+                    "player_name":        _mr7["player_name"],
+                    "rarity":             "" if not _in_gal7 else str(_mr7.get("position", "")),
+                    "position":           _pos7,
+                    "in_season_eligible": None,
+                    "category":           "SP" if _isp7 else "Hitter",
+                    "nb_games":           _ng7,
+                    "projected_score":    None,
+                    "breakdown":          "— MLB (hors galerie)" if not _in_gal7 else "— galerie / hors GW",
+                    "ml_pred":            _mm7,
+                    "ml_lo":              round(_mm7 - _hw7g, 1) if _mm7 else None,
+                    "ml_hi":              round(_mm7 + _hw7g, 1) if _mm7 else None,
+                })
+            if _extra7:
+                df7 = pd.concat([df7, pd.DataFrame(_extra7)], ignore_index=True)
 
         # ── Métriques ────────────────────────────────────────────────────────
         st.subheader(f"GW{gw7} — Projections de score")
@@ -1680,18 +1785,23 @@ with tab7:
         col71, col72, col73 = st.columns(3)
         col71.metric("Hitters en galerie",  len(_gal_h7))
         col72.metric("SP en galerie",       len(_gal_sp7))
-        if not df7.empty and pd.notna(df7.iloc[0]["projected_score"]):
-            best7 = df7.iloc[0]
-            col73.metric(
-                "Meilleure projection",
-                f"{best7['projected_score']:.1f} pts",
-                best7["player_name"],
-            )
+        if not df7.empty:
+            # Priorité ML ; fallback score historique si pas de données ML
+            _best_col7 = "ml_pred" if df7["ml_pred"].notna().any() else "projected_score"
+            _df7_best  = df7[df7[_best_col7].notna()]
+            if not _df7_best.empty:
+                best7  = _df7_best.loc[_df7_best[_best_col7].idxmax()]
+                _bsrc7 = "ML" if _best_col7 == "ml_pred" else "hist."
+                col73.metric(
+                    "Meilleure projection",
+                    f"{best7[_best_col7]:.1f} pts {_bsrc7}",
+                    best7["player_name"],
+                )
 
         st.divider()
 
-        # Filtres
-        col7f1, col7f2 = st.columns([2, 2])
+        # Filtres + tri
+        col7f1, col7f2, col7f3 = st.columns([2, 2, 2])
         with col7f1:
             show_cat7 = st.multiselect(
                 "Catégorie", ["Hitter", "SP"],
@@ -1699,14 +1809,25 @@ with tab7:
             )
         with col7f2:
             show_is7 = st.checkbox("In Season uniquement", value=False, key="proj7_is")
+        with col7f3:
+            sort_by7 = st.radio(
+                "Trier par", ["Prédiction ML", "Score historique"],
+                horizontal=True, key="proj7_sort",
+            )
 
         df7_f = df7[df7["category"].isin(show_cat7)].copy()
         if show_is7:
             df7_f = df7_f[df7_f["in_season_eligible"] == True]
+        if sort_by7 == "Prédiction ML":
+            df7_f = df7_f.sort_values("ml_pred", ascending=False, na_position="last")
+        else:
+            df7_f = df7_f.sort_values("projected_score", ascending=False, na_position="last")
 
         # ── Affichage ────────────────────────────────────────────────────────
         for _, row7 in df7_f.iterrows():
-            if pd.isna(row7["projected_score"]):
+            _has_hist7 = pd.notna(row7.get("projected_score"))
+            _has_ml7   = pd.notna(row7.get("ml_pred"))
+            if not _has_hist7 and not _has_ml7:
                 continue
             rarity7 = row7["rarity"]
             color7  = RARITY_COLOR.get(rarity7.lower(), "#888")
@@ -1721,6 +1842,36 @@ with tab7:
             nb_g7 = int(row7["nb_games"])
             games_lbl7 = f"{nb_g7} match{'s' if nb_g7 > 1 else ''}"
 
+            ml7_val  = row7.get("ml_pred")
+            ml7_lo   = row7.get("ml_lo")
+            ml7_hi   = row7.get("ml_hi")
+            ml7_html = (
+                f'<div style="font-size:0.78rem;margin-top:4px;opacity:0.85">'
+                f'<span style="color:#818cf8;font-weight:600">ML</span>'
+                f' {ml7_val:.1f} pts'
+                f'<span style="opacity:0.6"> IC80% [{ml7_lo:.1f}, {ml7_hi:.1f}]</span>'
+                f'</div>'
+                if pd.notna(ml7_val) else ""
+            )
+            _hist_score7 = row7.get("projected_score")
+            if pd.notna(_hist_score7):
+                _hist_html7 = (
+                    f'<div class="stat-value">{_hist_score7:.1f}'
+                    f'<small style="font-size:0.7rem;font-weight:400;opacity:0.7"> pts GW hist.</small>'
+                    f'</div>'
+                )
+            elif nb_g7 > 0:
+                _hist_html7 = (
+                    f'<div class="stat-value" style="opacity:0.35">—'
+                    f'<small style="font-size:0.7rem;font-weight:400"> pas d\'historique vs</small>'
+                    f'</div>'
+                )
+            else:
+                _hist_html7 = (
+                    f'<div class="stat-value" style="opacity:0.35">—'
+                    f'<small style="font-size:0.7rem;font-weight:400"> hors GW</small>'
+                    f'</div>'
+                )
             st.markdown(
                 f'<div class="player-card" style="border-color:{color7}55;">'
                 f'<div class="card-header">'
@@ -1734,12 +1885,11 @@ with tab7:
                 f'<span class="badge">{games_lbl7}</span>'
                 f'</div>'
                 f'<div class="card-stats">'
-                f'<div class="stat-value">{row7["projected_score"]:.1f}'
-                f'<small style="font-size:0.7rem;font-weight:400;opacity:0.7"> pts GW proj.</small>'
-                f'</div>'
+                f'{_hist_html7}'
                 f'<div class="kickoff" style="font-size:0.72rem;opacity:0.55">'
                 f'{row7["breakdown"]}</div>'
                 f'</div>'
+                f'{ml7_html}'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -1815,8 +1965,9 @@ with tab8:
     except Exception:
         _df_p8 = pd.DataFrame()
 
+    _tsched8: dict = {}
     if not _df_p8.empty:
-        _tsched8: dict = {}
+        _tsched8 = {}
         for _, _g8 in _df_p8.iterrows():
             if _g8["home_team_slug"]:
                 _tsched8.setdefault(_g8["home_team_slug"], []).append(
@@ -1851,12 +2002,44 @@ with tab8:
                     total8 += sc
             return round(total8, 1) if games8 else _smap_tb.get(player_slug, 0.0)
 
-        df_tb["proj_score"] = df_tb.apply(
+        df_tb["proj_score_hist"] = df_tb.apply(
             lambda r: _gw_score8(r["player_slug"], r["active_club_slug"], r["position_agg"]),
             axis=1,
         )
     else:
-        df_tb["proj_score"] = df_tb["player_slug"].map(_smap_tb).fillna(0.0)
+        df_tb["proj_score_hist"] = df_tb["player_slug"].map(_smap_tb).fillna(0.0)
+
+    # Prediction ML GW : pred_median * nb_matchs_dans_la_GW
+    if not df_ml.empty:
+        _ml8 = (
+            df_ml[df_ml["gallery_manager"] == sel_manager]
+            .drop_duplicates("player_slug")
+            .set_index("player_slug")["pred_median"]
+        )
+        _tsched8_len = {t: len(g) for t, g in _tsched8.items()} if not _df_p8.empty else {}
+
+        def _ml_gw_score8(player_slug, team_slug, position_agg):
+            ml = _ml8.get(player_slug)
+            if ml is None:
+                return None
+            if position_agg in ("SP", "RP"):
+                return round(float(ml), 1)
+            nb = _tsched8_len.get(team_slug, 1)
+            return round(float(ml) * nb, 1)
+
+        df_tb["proj_score_ml"] = df_tb.apply(
+            lambda r: _ml_gw_score8(r["player_slug"], r["active_club_slug"], r["position_agg"]),
+            axis=1,
+        )
+        # proj_score = ML si dispo, sinon historique
+        df_tb["proj_score"] = df_tb["proj_score_ml"].combine_first(df_tb["proj_score_hist"])
+    else:
+        df_tb["proj_score_ml"] = None
+        df_tb["proj_score"]    = df_tb["proj_score_hist"]
+
+    # Score effectif = score projeté × power de la carte (bonus Sorare)
+    _power_num = pd.to_numeric(df_tb["card_power"], errors="coerce").fillna(1.0)
+    df_tb["proj_score_eff"] = (pd.to_numeric(df_tb["proj_score"], errors="coerce").fillna(0.0) * _power_num).round(1)
 
     # Index card_name → row
     _cl = df_tb.set_index("card_name").to_dict("index")
@@ -1865,51 +2048,63 @@ with tab8:
     def _fmt_opt(x: str) -> str:
         if x == "—":
             return "—"
-        r   = _cl.get(x, {})
-        pos = r.get("position_exact") or "?"
-        is_ = "IS" if r.get("is_eligible") else "OOS"
-        sc  = r.get("proj_score") or 0.0
-        return f"{x}  [{pos} · {is_} · {sc:.0f} pts]"
+        r    = _cl.get(x, {})
+        pos  = r.get("position_exact") or "?"
+        is_  = "IS" if r.get("is_eligible") else "OOS"
+        try:
+            sc = float(r.get("proj_score_eff") or r.get("proj_score") or 0.0)
+        except (TypeError, ValueError):
+            sc = 0.0
+        try:
+            pwr = float(r.get("card_power") or 1.0)
+        except (TypeError, ValueError):
+            pwr = 1.0
+        src  = "ML" if r.get("proj_score_ml") is not None else "~"
+        return f"{x}  [{pos} · {is_} · {sc:.0f} pts eff. · ×{pwr:.3f} · {src}]"
 
     def _tb_suggest(other_used: set, require_is: bool) -> dict:
-        """Greedy team builder : IS en priorité, puis score projeté desc."""
-        result:  dict = {}
-        used:    set  = set()
-        is_map        = df_tb.set_index("card_name")["is_eligible"].to_dict()
-        df_s          = df_tb.sort_values(
-            ["is_eligible", "proj_score"], ascending=[False, False]
-        )
-        slots = list(_SLOT_POS.items())
-        n     = len(slots)
+        """Greedy team builder : maximise proj_score_eff, force ≥6 IS si requis.
+        Le slot libre (7ème) peut accueillir une carte Classic Season (OOS)
+        si elle offre un meilleur score effectif qu'une carte IS disponible.
+        """
+        result: dict = {}
+        used:   set  = set()
+        is_map = df_tb.set_index("card_name")["is_eligible"].to_dict()
+        slots  = list(_SLOT_POS.items())
+        n      = len(slots)
         for i, (slot_name, valid_pos) in enumerate(slots):
-            cands = df_s[
-                df_s["position_agg"].isin(valid_pos) &
-                ~df_s["card_name"].isin(other_used | used)
-            ]
-            if cands.empty:
+            is_so_far  = sum(1 for c in used if is_map.get(c, False))
+            remaining  = n - i
+            must_be_is = max(0, 6 - is_so_far - (remaining - 1)) if require_is else 0
+
+            cands_all = (
+                df_tb[
+                    df_tb["position_agg"].isin(valid_pos) &
+                    ~df_tb["card_name"].isin(other_used | used)
+                ]
+                .sort_values("proj_score_eff", ascending=False)
+            )
+            if cands_all.empty:
                 result[slot_name] = None
                 continue
-            if require_is:
-                is_so_far    = sum(1 for c in used if is_map.get(c, False))
-                remaining    = n - i
-                must_be_is   = max(0, 6 - is_so_far - (remaining - 1))
-                if must_be_is > 0:
-                    is_cands = cands[cands["is_eligible"]]
-                    if not is_cands.empty:
-                        cands = is_cands
+            if must_be_is > 0:
+                cands_is = cands_all[cands_all["is_eligible"]]
+                cands    = cands_is if not cands_is.empty else cands_all
+            else:
+                cands = cands_all
             result[slot_name] = cands.iloc[0]["card_name"]
             used.add(result[slot_name])
         return result
 
     def _team_validation(team: dict) -> tuple:
-        """Retourne (is_count, max_club_count, total_score, n_filled)."""
+        """Retourne (is_count, max_club_count, total_score_eff, n_filled)."""
         cards = [v for v in team.values() if v]
         if not cards:
             return 0, 0, 0.0, 0
         is_c   = sum(1 for c in cards if _cl.get(c, {}).get("is_eligible", False))
         clubs  = [_cl.get(c, {}).get("active_club_slug", "") for c in cards]
         max_cl = max(_Counter(clubs).values()) if clubs else 0
-        score  = sum(_cl.get(c, {}).get("proj_score", 0.0) for c in cards)
+        score  = sum(float(_cl.get(c, {}).get("proj_score_eff") or 0.0) for c in cards)
         return is_c, max_cl, score, len(cards)
 
     # ── Ajout / suppression d'équipe ──────────────────────────────────────────
@@ -1970,7 +2165,7 @@ with tab8:
                             df_tb["position_agg"].isin(_vpos) &
                             ~df_tb["card_name"].isin(_other_used | _in_team_used)
                         ]
-                        .sort_values("proj_score", ascending=False)
+                        .sort_values("proj_score_eff", ascending=False)
                     )
                     _opts    = ["—"] + _cands["card_name"].tolist()
                     _current = _team.get(_sname)
@@ -2007,7 +2202,7 @@ with tab8:
                     f'font-size:0.82rem">'
                     f'<span style="color:{_is_clr}">{_is_ico} IS : {_is_c}/7{_is_req}</span>'
                     f'<span style="color:{_cl_clr}">{_cl_ico} Club max : {_max_cl}/6</span>'
-                    f'<span style="color:#4CAF50">⚾ Score proj. : <b>{_sc:.1f}</b> pts</span>'
+                    f'<span style="color:#4CAF50">⚾ Score eff. (×power) : <b>{_sc:.1f}</b> pts</span>'
                     f'<span style="opacity:0.45">{_nf}/7 slots remplis</span>'
                     f'</div>',
                     unsafe_allow_html=True,
@@ -2032,3 +2227,572 @@ with tab8:
                             f'{_sn}</div>',
                             unsafe_allow_html=True,
                         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 9 — COMPÉTITIONS & RÉCOMPENSES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+with tab9:
+    import math as _math9
+    import plotly.graph_objects as go
+
+    if df_lb.empty:
+        st.info("Aucune donnée de compétition. Lance `python fetch_leaderboard_history.py` pour collecter.")
+        st.stop()
+
+    _arena9 = df_lb[
+        (df_lb["source"] == "arena") &
+        ~df_lb["leaderboard_slug"].str.lower().str.endswith("_pve", na=False)
+    ].copy()
+    _hs9    = df_lb[df_lb["source"] == "hot_streak"].copy()
+
+    # ── Filtres ───────────────────────────────────────────────────────────────
+    _col9a, _col9b, _col9c_filt = st.columns([2, 2, 3])
+    with _col9a:
+        _rar9 = st.radio(
+            "Rareté", ["limited", "rare", "super_rare"],
+            horizontal=True, key="lb9_rar",
+        )
+    with _col9b:
+        _arena_filter9 = st.radio(
+            "Type", ["Toutes", "Arena", "Classiques"],
+            horizontal=True, key="lb9_arena_filter",
+        )
+
+    # Mapping nom affiché → nom réel (pour garder le filtre sur leaderboard_name)
+    _rar_df9 = _arena9[_arena9["rarity_type"] == _rar9].copy()
+    if _arena_filter9 == "Arena":
+        _rar_df9 = _rar_df9[_rar_df9["is_arena"] == True]
+    elif _arena_filter9 == "Classiques":
+        _rar_df9 = _rar_df9[_rar_df9["is_arena"] == False]
+
+    # Table de correspondance : nom_affiché → nom_réel
+    _name_map9 = {
+        (f"ARENA — {n}" if bool(
+            _rar_df9[_rar_df9["leaderboard_name"] == n]["is_arena"].any()
+        ) else n): n
+        for n in sorted(_rar_df9["leaderboard_name"].dropna().unique())
+    }
+    _all_comps9_disp = list(_name_map9.keys())
+    _default_real9   = ["Champion", "Challenger", "Standard", "American"]
+    _default_disp9   = [d for d, r in _name_map9.items() if r in _default_real9]
+
+    with _col9c_filt:
+        _sel_comps9_disp = st.multiselect(
+            "Compétitions", _all_comps9_disp,
+            default=_default_disp9,
+            key="lb9_comps",
+        )
+
+    # Noms réels sélectionnés
+    _sel_comps9 = [_name_map9[d] for d in _sel_comps9_disp if d in _name_map9]
+
+    st.divider()
+
+    # Sous-ensemble filtré
+    _df9 = _arena9[
+        (_arena9["rarity_type"] == _rar9) &
+        (_arena9["leaderboard_name"].isin(_sel_comps9)) &
+        _arena9["score_threshold"].notna() &
+        _arena9["gw_int"].notna()
+    ].copy()
+    _df9["gw_int"] = _df9["gw_int"].astype(int)
+    # Nom affiché : préfixe "ARENA — " pour les compétitions arena
+    _rev_map9 = {v: k for k, v in _name_map9.items()}
+    _df9["leaderboard_display"] = _df9["leaderboard_name"].map(_rev_map9).fillna(_df9["leaderboard_name"])
+
+    # ── Section 1 : seuils d'entrée et de victoire par GW ────────────────────
+    st.subheader("Évolution des seuils par compétition")
+    st.caption("Seuil d'entrée = score minimum pour toute récompense · Seuil top = score le plus haut")
+
+    _entry9 = (
+        _df9.groupby(["gw_int", "leaderboard_display"], as_index=False)
+        .agg(
+            entry=("score_threshold", "min"),
+            top=("score_threshold", "max"),
+            median=("score_threshold", "median"),
+            nb_div=("leaderboard_slug", "nunique"),
+        )
+        .sort_values("gw_int")
+    )
+
+    _COMP_COLORS = {
+        "Champion":   "#f59e0b",
+        "Challenger": "#ef4444",
+        "Standard":   "#3b82f6",
+        "American":   "#10b981",
+        "National":   "#8b5cf6",
+        "Beginner":   "#94a3b8",
+        "Elite":      "#ec4899",
+        "Hitters":    "#06b6d4",
+        "Legacy":     "#a16207",
+        "OG":         "#7c3aed",
+        "Sandlot":    "#059669",
+    }
+
+    fig_entry = go.Figure()
+    for comp_disp in _sel_comps9_disp:
+        comp_real = _name_map9.get(comp_disp, comp_disp)
+        sub = _entry9[_entry9["leaderboard_display"] == comp_disp]
+        if sub.empty:
+            continue
+        color = _COMP_COLORS.get(comp_real, "#888")
+        # Bande min-max (si plusieurs divisions)
+        if (sub["top"] - sub["entry"]).max() > 1:
+            fig_entry.add_trace(go.Scatter(
+                x=list(sub["gw_int"]) + list(sub["gw_int"])[::-1],
+                y=list(sub["top"]) + list(sub["entry"])[::-1],
+                fill="toself",
+                fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.10)",
+                line=dict(width=0),
+                showlegend=False,
+                hoverinfo="skip",
+            ))
+        # Ligne seuil d'entrée
+        fig_entry.add_trace(go.Scatter(
+            x=sub["gw_int"], y=sub["entry"],
+            mode="lines+markers",
+            name=f"{comp_disp} — entrée",
+            line=dict(color=color, width=2, dash="dot"),
+            marker=dict(size=6),
+            customdata=sub[["nb_div"]].values,
+            hovertemplate="%{y:.1f} pts · %{customdata[0]} division(s)<extra>%{fullData.name}</extra>",
+        ))
+        # Ligne top score
+        fig_entry.add_trace(go.Scatter(
+            x=sub["gw_int"], y=sub["top"],
+            mode="lines+markers",
+            name=f"{comp_disp} — top",
+            line=dict(color=color, width=2),
+            marker=dict(size=6),
+            customdata=sub[["nb_div"]].values,
+            hovertemplate="%{y:.1f} pts · %{customdata[0]} division(s)<extra>%{fullData.name}</extra>",
+        ))
+
+    # Ligne "entrée $" pour Champion : seuil minimum des paliers monétaires
+    _champ_real9 = "Champion"
+    _champ_disp9 = _rev_map9.get(_champ_real9, _champ_real9)
+    if _champ_disp9 in _sel_comps9_disp:
+        _champ_mon9 = (
+            _df9[
+                (_df9["leaderboard_name"] == _champ_real9) &
+                (_df9["reward_type"] == "monetary") &
+                _df9["score_threshold"].notna()
+            ]
+            .groupby("gw_int", as_index=False)
+            .agg(entree_dollar=("score_threshold", "min"))
+            .sort_values("gw_int")
+        )
+        if not _champ_mon9.empty:
+            fig_entry.add_trace(go.Scatter(
+                x=_champ_mon9["gw_int"], y=_champ_mon9["entree_dollar"],
+                mode="lines+markers",
+                name=f"{_champ_disp9} — entrée $",
+                line=dict(color="#22c55e", width=2, dash="dashdot"),
+                marker=dict(size=7, symbol="diamond"),
+                hovertemplate="%{y:.1f} pts<extra>%{fullData.name}</extra>",
+            ))
+
+    _gw_min9 = int(_df9["gw_int"].min()) if not _df9.empty else 119
+    _gw_max9 = int(_df9["gw_int"].max()) if not _df9.empty else 133
+    fig_entry.update_layout(
+        xaxis=dict(title="GW", tickmode="linear", dtick=1,
+                   range=[_gw_min9 - 0.5, _gw_max9 + 0.5]),
+        yaxis=dict(title="Score"),
+        height=480,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02),
+        hovermode="x unified",
+        margin=dict(r=200),
+    )
+    st.plotly_chart(fig_entry, use_container_width=True)
+
+    # ── Section 2 : paliers complets pour une compétition choisie ────────────
+    st.divider()
+    st.subheader("Structure des paliers — détail")
+
+    _gws_sorted9 = sorted(_arena9["gw_int"].dropna().unique())
+
+    _col9c, _col9d, _col9e = st.columns([2, 2, 2])
+    with _col9c:
+        _comp_detail9_disp = st.selectbox(
+            "Compétition", _sel_comps9_disp if _sel_comps9_disp else _all_comps9_disp,
+            key="lb9_comp_detail",
+        )
+    with _col9d:
+        _detail_mode9 = st.radio(
+            "Période", ["GW spécifique", "Moyenne 5 dernières GW"],
+            horizontal=True, key="lb9_detail_mode",
+        )
+    _comp_detail9_real = _name_map9.get(_comp_detail9_disp, _comp_detail9_disp) if _comp_detail9_disp else None
+
+    _gw_detail9 = None
+    if _detail_mode9 == "GW spécifique":
+        with _col9e:
+            _gws_avail9 = sorted(
+                _df9[_df9["leaderboard_name"] == _comp_detail9_real]["gw_int"].unique(), reverse=True
+            ) if _comp_detail9_real else []
+            _gw_detail9 = st.selectbox(
+                "GW", _gws_avail9, index=min(1, len(_gws_avail9) - 1), key="lb9_gw_detail"
+            ) if _gws_avail9 else None
+
+    if _comp_detail9_real and (_gw_detail9 is not None or _detail_mode9 == "Moyenne 5 dernières GW"):
+        _has_from_rank9 = "from_rank" in _df9.columns
+
+        if _detail_mode9 == "GW spécifique":
+            _detail9 = _df9[
+                (_df9["leaderboard_name"] == _comp_detail9_real) &
+                (_df9["gw_int"] == _gw_detail9) &
+                _df9["score_threshold"].notna()
+            ]
+            _title_base9 = f"{_comp_detail9_disp} {_rar9} — GW{_gw_detail9}"
+        else:
+            # 5 GWs les plus récentes en excluant la dernière (encore en cours)
+            _gws_comp9 = sorted(_df9[_df9["leaderboard_name"] == _comp_detail9_real]["gw_int"].unique())
+            _gws_comp_excl9 = _gws_comp9[:-1] if len(_gws_comp9) > 1 else _gws_comp9
+            _last5_detail9  = _gws_comp_excl9[-5:]
+            _detail9 = _df9[
+                (_df9["leaderboard_name"] == _comp_detail9_real) &
+                _df9["gw_int"].isin(_last5_detail9) &
+                _df9["score_threshold"].notna()
+            ]
+            _gw_range9   = f"GW{int(_last5_detail9[0])}–GW{int(_last5_detail9[-1])}"
+            _title_base9 = f"{_comp_detail9_disp} {_rar9} — moy. {_gw_range9}"
+
+        def _build_tiers(df_sub: pd.DataFrame) -> pd.DataFrame:
+            if df_sub.empty:
+                return pd.DataFrame()
+            agg = dict(
+                score_min=("score_threshold", "min"),
+                score_median=("score_threshold", "median"),
+                score_max=("score_threshold", "max"),
+                reward_quantity=("reward_quantity", "median"),
+                reward_usd_cents=("reward_usd_cents", "median"),
+            )
+            if _has_from_rank9:
+                agg["from_rank"] = ("from_rank", "first")
+            t = df_sub.groupby("tier_rank", as_index=False).agg(**agg).sort_values("tier_rank")
+            if "from_rank" not in t.columns:
+                t["from_rank"] = None
+            return t
+
+        _tiers_mon9 = _build_tiers(_detail9[_detail9["reward_type"] == "monetary"])
+        _tiers_ess9 = _build_tiers(_detail9[_detail9["reward_type"] == "card_shard"])
+
+        def _fig_paliers(tiers: pd.DataFrame, title: str, bar_color: str, reward_type: str = "card_shard") -> go.Figure:
+            fig = go.Figure()
+            for _, row in tiers.iterrows():
+                tier  = int(row["tier_rank"])
+                score = row["score_median"]
+                x_label = (
+                    f"Top {int(row['from_rank'])}"
+                    if pd.notna(row.get("from_rank"))
+                    else f"Palier {tier}"
+                )
+                if reward_type == "monetary" and pd.notna(row.get("reward_usd_cents")):
+                    reward_text = f"${row['reward_usd_cents'] / 100:.0f}"
+                elif pd.notna(row.get("reward_quantity")):
+                    reward_text = f"{int(row['reward_quantity'])}"
+                else:
+                    reward_text = ""
+                err_y = dict(
+                    type="data", symmetric=False,
+                    array=[row["score_max"] - score],
+                    arrayminus=[score - row["score_min"]],
+                    visible=True, color=bar_color,
+                ) if (row["score_max"] - row["score_min"]) > 0.5 else None
+                fig.add_trace(go.Bar(
+                    x=[x_label], y=[score],
+                    error_y=err_y,
+                    marker_color=bar_color,
+                    text=[reward_text],
+                    textposition="inside",
+                    insidetextanchor="middle",
+                    textangle=0,
+                    textfont=dict(color="white", size=13),
+                    showlegend=False,
+                    hovertemplate=f"Score seuil : %{{y:.1f}}<br>Récompense : {reward_text}<extra></extra>",
+                ))
+            y_max = float(tiers["score_max"].max()) if not tiers.empty else 300
+            fig.update_layout(
+                title=title,
+                yaxis=dict(title="Score requis", range=[0, y_max * 1.18]),
+                xaxis=dict(title="Classement"),
+                height=360,
+                bargap=0.35,
+                margin=dict(t=50, b=40),
+            )
+            return fig
+
+        _fcols9 = st.columns(2)
+        with _fcols9[0]:
+            if not _tiers_mon9.empty:
+                st.plotly_chart(
+                    _fig_paliers(_tiers_mon9, f"Récompenses en Cash — {_title_base9}", "#22c55e", reward_type="monetary"),
+                    use_container_width=True,
+                )
+            else:
+                st.caption("Pas de récompenses monétaires pour cette compétition.")
+        with _fcols9[1]:
+            if not _tiers_ess9.empty:
+                st.plotly_chart(
+                    _fig_paliers(_tiers_ess9, f"Essences — {_title_base9}", "#a78bfa"),
+                    use_container_width=True,
+                )
+            else:
+                st.caption("Pas de récompenses en essences pour cette compétition.")
+
+    # ── Section 3 : tableau récapitulatif ────────────────────────────────────
+    st.divider()
+    st.subheader("Récapitulatif des seuils")
+
+    _penult_gw9 = int(_gws_sorted9[-2]) if len(_gws_sorted9) >= 2 else (int(_gws_sorted9[-1]) if _gws_sorted9 else 0)
+    _recap9 = (
+        _arena9[
+            (_arena9["gw_int"] == _penult_gw9) &
+            (_arena9["rarity_type"] == _rar9) &
+            _arena9["score_threshold"].notna()
+        ]
+        .groupby("leaderboard_name", as_index=False)
+        .agg(
+            seuil_entree=("score_threshold", "min"),
+            seuil_top=("score_threshold", "max"),
+            nb_divisions=("leaderboard_slug", "nunique"),
+        )
+        .sort_values("seuil_entree")
+    )
+    _recap9.columns = ["Compétition", "Seuil entrée", "Seuil top", "Nb divisions"]
+    st.caption(f"GW{_penult_gw9} · rareté {_rar9}")
+    st.dataframe(
+        _recap9.style.format({"Seuil entrée": "{:.1f}", "Seuil top": "{:.1f}"}),
+        use_container_width=True, hide_index=True,
+    )
+
+    # ── Section 4 : Hot Streak référence ─────────────────────────────────────
+    st.divider()
+    st.subheader("Hot Streak — seuils de référence")
+    st.caption("Seuils fixes (indépendants de la GW). Bonus essences = par équipe supplémentaire atteignant le seuil.")
+    _hs_disp9 = _hs9[_hs9["rarity_type"] == _rar9][
+        ["score_threshold", "reward_quantity", "bonus_shards"]
+    ].rename(columns={
+        "score_threshold": "Score cible",
+        "reward_quantity": "Essences (1ère équipe)",
+        "bonus_shards":    "Bonus / équipe supp.",
+    })
+    st.dataframe(
+        _hs_disp9.style.format({"Score cible": "{:.0f}", "Essences (1ère équipe)": "{:.0f}", "Bonus / équipe supp.": "{:.0f}"}),
+        use_container_width=True, hide_index=True,
+    )
+
+    # ── Section 5 : Comparaison de rentabilité ────────────────────────────────
+    st.divider()
+    st.subheader("Comparaison de rentabilité")
+
+    _ESS_RATE9        = 3 / 1000
+    _ARENA_ENTRY9     = {"Beginner": 100, "Elite": 800}
+    _ARENA_ENTRY_DEF9 = 300
+    _LINEUP_SIZE9     = {"Hitters": 5, "Sandlot": 5}   # autres : 7 joueurs par défaut
+    _LINEUP_COMP9     = {"Hitters": "5 hitters", "Sandlot": "3 hitters + 2 SP"}
+
+    # ── Paliers HS pour la rareté active ──────────────────────────────────────
+    _hs_all9 = (
+        _hs9[_hs9["rarity_type"] == _rar9]
+        .sort_values("score_threshold")
+        .reset_index(drop=True)
+    )
+    _hs_palier_labels9 = [
+        f"Palier {i+1} ({int(r.score_threshold)} pts)"
+        for i, r in enumerate(_hs_all9.itertuples(index=False))
+    ]
+
+    # ── Contrôles ─────────────────────────────────────────────────────────────
+    _cmp_c1, _cmp_c2, _cmp_c3 = st.columns([4, 2, 2])
+    with _cmp_c1:
+        _score_cmp9 = st.slider(
+            "Score cible (lineup 7 joueurs)", min_value=100, max_value=400, value=200, step=5, key="lb9_score_cmp"
+        )
+    with _cmp_c2:
+        _hs_palier_sel9 = st.selectbox(
+            "Palier HS actuel",
+            options=list(range(len(_hs_palier_labels9))),
+            format_func=lambda i: _hs_palier_labels9[i],
+            key="lb9_hs_palier",
+        )
+    with _cmp_c3:
+        _n_teams_hs9 = st.number_input(
+            "Équipes Hot Streak", min_value=1, max_value=30, value=1, step=1, key="lb9_n_teams_hs"
+        )
+
+    _gw_mode_cmp9 = st.radio(
+        "Référence GW", ["Dernière GW terminée", "Moyenne 5 dernières GW terminées"],
+        horizontal=True, key="lb9_gw_mode_cmp",
+    )
+    _gws_excl_last9 = _gws_sorted9[:-1]  # exclut la GW en cours
+    if _gw_mode_cmp9 == "Dernière GW terminée":
+        _gws_cmp9      = [int(_gws_excl_last9[-1])] if len(_gws_excl_last9) >= 1 else []
+        _gw_ref_lbl9   = f"GW{_gws_cmp9[0]}" if _gws_cmp9 else "—"
+    else:
+        _last5_cmp9    = _gws_excl_last9[-5:] if len(_gws_excl_last9) >= 5 else _gws_excl_last9
+        _gws_cmp9      = [int(g) for g in _last5_cmp9]
+        _gw_ref_lbl9   = f"moy. GW{_gws_cmp9[0]}–GW{_gws_cmp9[-1]}" if _gws_cmp9 else "—"
+
+    st.caption(f"Hypothèse : 1 000 essences = 3 $ · Référence : {_gw_ref_lbl9}")
+
+    def _best_tier_reached(df_ref, score):
+        hits = df_ref[df_ref["score_threshold"] <= score]
+        return hits.sort_values("score_threshold", ascending=False).iloc[0] if not hits.empty else None
+
+    # ── Données de référence : toutes compétitions × types de récompenses ─────
+    _ref_base9 = _arena9[
+        (_arena9["rarity_type"] == _rar9) &
+        _arena9["gw_int"].isin(_gws_cmp9) &
+        _arena9["score_threshold"].notna()
+    ]
+    _is_arena_map9 = _ref_base9.groupby("leaderboard_name")["is_arena"].first().to_dict()
+
+    _comp_ref9 = (
+        _ref_base9
+        .groupby(["leaderboard_name", "reward_type", "tier_rank"], as_index=False)
+        .agg(
+            score_threshold=("score_threshold",  "median"),
+            reward_quantity=("reward_quantity",   "median"),
+            reward_usd_cents=("reward_usd_cents", "median"),
+        )
+    )
+
+    # ── Construction du tableau ────────────────────────────────────────────────
+    _cmp_rows9 = []
+    _comp_order9 = sorted(_comp_ref9["leaderboard_name"].unique())
+    for _cname9 in _comp_order9:
+        _is_arena_c9  = bool(_is_arena_map9.get(_cname9, False))
+        _entry9_cost  = _ARENA_ENTRY9.get(_cname9, _ARENA_ENTRY_DEF9) if _is_arena_c9 else 0
+        _prefix9      = "ARENA — " if _is_arena_c9 else ""
+        _n_players9   = _LINEUP_SIZE9.get(_cname9, 7)
+        _fmt_lbl9     = _LINEUP_COMP9.get(_cname9, f"{_n_players9} joueurs")
+
+        _adj9 = 7 / _n_players9  # facteur de normalisation vers équivalent 7 joueurs
+
+        for _rtype9 in ["monetary", "card_shard"]:
+            _sub9 = _comp_ref9[
+                (_comp_ref9["leaderboard_name"] == _cname9) &
+                (_comp_ref9["reward_type"] == _rtype9)
+            ].copy()
+            if _sub9.empty:
+                continue
+
+            # Normalise les seuils vers l'équivalent 7 joueurs avant comparaison
+            _sub9["score_threshold"] = _sub9["score_threshold"] * _adj9
+            _best9 = _best_tier_reached(_sub9, _score_cmp9)
+
+            if _rtype9 == "monetary":
+                _lbl9 = f"{_prefix9}{_cname9} (cash)"
+                if _best9 is not None:
+                    _val9   = float(_best9["reward_usd_cents"]) / 100
+                    _rew9   = f"${_val9:.2f}"
+                    _thr_adj9  = _best9["score_threshold"]
+                    _thr_real9 = _thr_adj9 / _adj9
+                    _seuil9 = (
+                        f"{_thr_adj9:.0f} pts ({_thr_real9:.0f} réel)"
+                        if _n_players9 != 7
+                        else f"{_thr_adj9:.0f} pts"
+                    )
+                else:
+                    _val9   = 0.0
+                    _rew9   = "$0"
+                    _seuil9 = "non atteint"
+            else:
+                _lbl9 = f"{_prefix9}{_cname9} (ess.)"
+                if _best9 is not None:
+                    _ess9      = float(_best9["reward_quantity"])
+                    _net9      = _ess9 - _entry9_cost
+                    _val9      = _net9 * _ESS_RATE9
+                    _thr_adj9  = _best9["score_threshold"]
+                    _thr_real9 = _thr_adj9 / _adj9
+                    _seuil9 = (
+                        f"{_thr_adj9:.0f} pts ({_thr_real9:.0f} réel)"
+                        if _n_players9 != 7
+                        else f"{_thr_adj9:.0f} pts"
+                    )
+                    _rew9   = (
+                        f"{int(_ess9)} − {_entry9_cost} = {int(_net9)} ess. → ${_val9:.2f}"
+                        if _entry9_cost > 0
+                        else f"{int(_ess9)} ess. → ${_val9:.2f}"
+                    )
+                else:
+                    _net9   = -_entry9_cost
+                    _val9   = _net9 * _ESS_RATE9
+                    _seuil9 = "non atteint"
+                    _rew9   = (
+                        f"0 − {_entry9_cost} = {int(_net9)} ess. → ${_val9:.2f}"
+                        if _entry9_cost > 0
+                        else "0 ess. → $0"
+                    )
+
+            _cmp_rows9.append({
+                "Compétition":      _lbl9,
+                "Format":           _fmt_lbl9,
+                "Score nécessaire": _seuil9,
+                "Récompense":       _rew9,
+                "Valeur ($)":       _val9,
+            })
+
+    # ── Hot Streak ────────────────────────────────────────────────────────────
+    _hsr_sel9    = _hs_all9.iloc[_hs_palier_sel9]
+    _hs_thr9     = float(_hsr_sel9["score_threshold"])
+    _hs_rew9     = float(_hsr_sel9["reward_quantity"])
+    _hs_bon9     = float(_hsr_sel9.get("bonus_shards", 0) or 0)
+    _hs_label9   = _hs_palier_labels9[_hs_palier_sel9]
+
+    if _score_cmp9 >= _hs_thr9:
+        _hs_total9   = _hs_rew9 + (_n_teams_hs9 - 1) * _hs_bon9
+        _hs_val9     = _hs_total9 * _ESS_RATE9
+        _hs_rew_str9 = (
+            f"{int(_hs_rew9)} ess. → ${_hs_val9:.2f}" if _n_teams_hs9 == 1
+            else f"{int(_hs_rew9)} + {_n_teams_hs9-1}×{int(_hs_bon9)} = {int(_hs_total9)} ess. → ${_hs_val9:.2f}"
+        )
+        _hs_seuil9   = f"{int(_hs_thr9)} pts ✓"
+        _hs_next9    = (_hs_palier_labels9[_hs_palier_sel9 + 1]
+                        if _hs_palier_sel9 + 1 < len(_hs_palier_labels9)
+                        else "Streak complète !")
+    else:
+        _hs_val9     = 0.0
+        _hs_rew_str9 = "$0 + reset palier 1"
+        _hs_seuil9   = f"{int(_hs_thr9)} pts ✗"
+        _hs_next9    = "—"
+
+    _cmp_rows9.append({
+        "Compétition":      f"Hot Streak {_hs_label9}",
+        "Format":           "7 joueurs",
+        "Score nécessaire": _hs_seuil9,
+        "Récompense":       _hs_rew_str9,
+        "Valeur ($)":       _hs_val9,
+    })
+
+    # ── Affichage ─────────────────────────────────────────────────────────────
+    _cmp_df9   = pd.DataFrame(_cmp_rows9).sort_values("Valeur ($)", ascending=False).reset_index(drop=True)
+    _best_val9 = float(_cmp_df9["Valeur ($)"].max())
+
+    def _hl_best9(row):
+        bg = "background-color: rgba(34,197,94,0.20)" if row["Valeur ($)"] == _best_val9 and _best_val9 > 0 else ""
+        return [bg] * len(row)
+
+    _display_cols9 = ["Compétition", "Format", "Score nécessaire", "Récompense", "Valeur ($)"]
+    st.dataframe(
+        _cmp_df9[_display_cols9].style.apply(_hl_best9, axis=1).format({"Valeur ($)": "${:.2f}"}),
+        use_container_width=True, hide_index=True,
+    )
+
+    if _best_val9 > 0:
+        _winner9 = _cmp_df9.iloc[0]
+        st.success(f"**Meilleur choix à {_score_cmp9} pts :** {_winner9['Compétition']} — {_winner9['Récompense']}")
+
+    if _score_cmp9 >= _hs_thr9 and _hs_next9 not in ("—", "Streak complète !"):
+        st.info(f"Hot Streak réussie → prochain palier : **{_hs_next9}**")
+
+    st.caption(
+        "Arena : coût d'entrée déduit (Beginner 100 ess., Elite 800 ess., autres 300 ess.). "
+        "Hitters / Sandlot : seuils multipliés par 7/5 pour comparaison sur base 7 joueurs (valeur réelle entre parenthèses). "
+        "Champion / Challenger (cash) et (ess.) sont mutuellement exclusifs selon le classement final. "
+        "Hot Streak : tout ou rien — échec = $0 et retour au palier 1. "
+        "Multi-équipes HS : toutes les équipes supposées au même score."
+    )

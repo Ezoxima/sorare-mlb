@@ -241,7 +241,7 @@ def update_game_infos(engine, headers: dict, all_fixtures: list) -> None:
         print("  A jour.")
         return
 
-    gw_range = f"GW{missing[0]['gameWeek']} → GW{missing[-1]['gameWeek']}"
+    gw_range = f"GW{missing[0]['gameWeek']} a GW{missing[-1]['gameWeek']}"
     print(f"  {len(missing)} GW manquantes ({gw_range})")
 
     for i, f in enumerate(missing):
@@ -263,7 +263,7 @@ def update_gw_scores(engine, headers: dict, all_fixtures: list) -> None:
         print("  A jour.")
         return
 
-    gw_range = f"GW{missing[0]['gameWeek']} → GW{missing[-1]['gameWeek']}"
+    gw_range = f"GW{missing[0]['gameWeek']} a GW{missing[-1]['gameWeek']}"
     print(f"  {len(missing)} GW manquantes ({gw_range})")
 
     for i, f in enumerate(missing):
@@ -565,4 +565,11 @@ if __name__ == "__main__":
     print("\n[7/7] Export parquet...")
     export_to_parquet(engine)
 
-    print("\nMise à jour complète !")
+    print("\n[8/8] Predictions ML (prochaine GW)...")
+    try:
+        from ml_predict_gw import run as ml_run
+        ml_run(engine)
+    except Exception as e:
+        print(f"  Avertissement predictions ML : {e}")
+
+    print("\nMise a jour complete !")
