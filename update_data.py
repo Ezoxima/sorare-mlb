@@ -473,7 +473,8 @@ def export_to_parquet(engine) -> None:
                    g.in_season_eligible, g.active_club_slug,
                    cp_is.price_eur  AS price_in_season,
                    cp_oos.price_eur AS price_out_season,
-                   cp_is.sealable_for
+                   cp_is.sealable_for,
+                   p.next_gw_projected_score
             FROM mlb.gallery_players g
             LEFT JOIN mlb.card_prices cp_is
                 ON g.player_slug = cp_is.player_slug
@@ -481,6 +482,7 @@ def export_to_parquet(engine) -> None:
             LEFT JOIN mlb.card_prices cp_oos
                 ON g.player_slug = cp_oos.player_slug
                AND LOWER(g.card_display_rarity) = cp_oos.rarity AND cp_oos.in_season = false
+            LEFT JOIN mlb.players p ON g.player_slug = p.player_slug
             WHERE NOT g.sealed
             ORDER BY CASE LOWER(g.card_display_rarity)
                 WHEN 'unique' THEN 0 WHEN 'super_rare' THEN 1 WHEN 'rare' THEN 2 ELSE 3 END,

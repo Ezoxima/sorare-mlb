@@ -20,7 +20,7 @@ C'est probablement dans les leaderbords, mais je n'ai pas construit la requete
 
 
 
-HOT STREAK : Pas de limite d'équipes
+HOT STREAK : Maximum 4 équipes
 Jouer contre le jeu. Il faut atteindre un certain score pour remporter des récompenses.
 
 Tu peux retrouver dans l'api sorare les récompenses en fonction du score de l'équipe

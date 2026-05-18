@@ -100,7 +100,7 @@ def _map_positions(raw_positions: list, map_exact: dict, map_agg: dict) -> dict:
 def _truncate(engine, *tables: str) -> None:
     with engine.begin() as conn:
         for table in tables:
-            conn.execute(text(f"DELETE FROM {table}"))
+            conn.execute(text(f"TRUNCATE {table} CASCADE"))
 
 
 # ── Teams ──────────────────────────────────────────────────────────────────────
@@ -179,6 +179,7 @@ def fetch_player_details(slug: str, headers: dict) -> dict:
           appearances
           seasonAppearances
           shirtNumber
+          nextClassicFixtureProjectedScore
           injuries {{
             active
             details
@@ -222,17 +223,19 @@ def fetch_and_store_players(engine, team_slugs: list, headers: dict) -> None:
         avg_score = p.get("averageScore")
         shirt = p.get("shirtNumber")
 
+        next_gw_score = p.get("nextClassicFixtureProjectedScore")
         players_rows.append({
-            "player_slug":        p["slug"],
-            "display_name":       p["displayName"],
-            "age":                p.get("age"),
-            "team_slug":          team_by_slug.get(slug),
-            "country":            p["country"]["name"] if p.get("country") else None,
-            "bat_hand":           p.get("batHand"),
-            "shirt_number":       shirt,
-            "appearances":        p.get("appearances"),
-            "season_appearances": p.get("seasonAppearances"),
-            "avg_score_season":   float(avg_score) if avg_score is not None else None,
+            "player_slug":               p["slug"],
+            "display_name":              p["displayName"],
+            "age":                       p.get("age"),
+            "team_slug":                 team_by_slug.get(slug),
+            "country":                   p["country"]["name"] if p.get("country") else None,
+            "bat_hand":                  p.get("batHand"),
+            "shirt_number":              shirt,
+            "appearances":               p.get("appearances"),
+            "season_appearances":        p.get("seasonAppearances"),
+            "avg_score_season":          float(avg_score) if avg_score is not None else None,
+            "next_gw_projected_score":   float(next_gw_score) if next_gw_score is not None else None,
             **pos_cols,
         })
 

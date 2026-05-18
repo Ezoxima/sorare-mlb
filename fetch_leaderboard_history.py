@@ -39,21 +39,21 @@ SLEEP      = 0.4   # secondes entre appels API
 # ── Seuils Hot Streak (hardcoded, independants de l'API) ───────────────────────
 HOT_STREAK_THRESHOLDS = [
     # rarity, score_threshold, shards, bonus_shards_per_extra_team
-    ("limited",    175,   500, 250),
-    ("limited",    200,  1500, 750),
-    ("limited",    225,  3000, 1500),
-    ("limited",    250,  6000, 2500),
-    ("limited",    275, 10000, 5000),
-    ("rare",       175,   200, 125),  # note: fichier source a une colonne mal alignee
-    ("rare",       230,  1000, 500),
-    ("rare",       250,  2000, 1000),
-    ("rare",       270,  4000, 2000),
-    ("rare",       290,  8000, 4000),
-    ("super_rare", 220,   250, 125),
-    ("super_rare", 245,   500, 250),
-    ("super_rare", 260,  1000, 500),
-    ("super_rare", 290,  2000, 1000),
-    ("super_rare", 315,  5000, 2500),
+    ("limited",    200,   500, 250),
+    ("limited",    230,  1500, 750),
+    ("limited",    250,  3000, 1500),
+    ("limited",    260,  6000, 2500),
+    ("limited",    280, 10000, 5000),
+    ("rare",       220,   250, 125),
+    ("rare",       260,  1000, 500),
+    ("rare",       270,  2000, 1000),
+    ("rare",       280,  4000, 2000),
+    ("rare",       300,  8000, 4000),
+    ("super_rare", 250,   250, 125),
+    ("super_rare", 280,   500, 250),
+    ("super_rare", 290,  1000, 500),
+    ("super_rare", 300,  2000, 1000),
+    ("super_rare", 320,  5000, 2500),
 ]
 
 
