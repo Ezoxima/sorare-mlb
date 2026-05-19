@@ -1,15 +1,59 @@
-limited;200;500;250
-limited;230;1500;750
-limited;250;3000;1500
-limited;260;6000;2500
-limited;280;10000;5000
-rare;220;250;125
-rare;260;1000;500
-rare;270;2000;1000
-rare;280;4000;2000
-rare;300;8000;4000
-super_rare;250;250;125
-super_rare;280;500;250
-super_rare;290;1000;500
-super_rare;300;2000;1000
-super_rare;320;5000;2500
+Arena Standard, Beginner et Elite : 
+7 Joueurs, max 6 joueurs d'une même équipe. 
+1 SP, 1 RP, 1 CI, 1 MI, 1 OF, 1 Hitter, 1 Libre
+
+Arena Sandlot
+5 Joueurs, max 4 joueurs d'une même équipe. 
+2 SP, 3 Hitters
+
+Arena Sandlot
+5 Joueurs, max 4 joueurs d'une même équipe. 
+5 Hitters
+
+Arena American
+7 Joueurs, max 6 joueurs d'une même équipe. 
+1 SP, 1 RP, 1 CI, 1 MI, 1 OF, 1 Hitter, 1 Libre
+Uniquement des joueurs des clubs suivants :
+Athletics
+Baltimore Orioles
+Boston Red Sox
+Chicago White Sox
+Cleveland Guardians
+Detroit Tigers
+Houston Astros
+Kansas City Royals
+Los Angeles Angels
+Minnesota Twins
+New York Yankees
+Seattle Mariners
+Tampa Bay Rays
+Texas Rangers
+
+Arena National
+7 Joueurs, max 6 joueurs d'une même équipe. 
+1 SP, 1 RP, 1 CI, 1 MI, 1 OF, 1 Hitter, 1 Libre
+Uniquement des joueurs des clubs suivants :
+Arizona Diamondbacks
+Atlanta Braves
+Chicago Cubs
+Cincinnati Reds
+Colorado Rockies
+Los Angeles Dodgers
+Miami Marlins
+Milwaukee Brewers
+New York Mets
+Philadelphia Phillies
+Pittsburgh Pirates
+San Diego Padres
+San Francisco Giants
+St. Louis Cardinals
+
+Arena OG
+7 Joueurs, max 6 joueurs d'une même équipe. 
+1 SP, 1 RP, 1 CI, 1 MI, 1 OF, 1 Hitter, 1 Libre
+Uniquement des cartes de la saison 2022 (La première)
+
+Arena Legacy
+7 Joueurs, max 6 joueurs d'une même équipe. 
+1 SP, 1 RP, 1 CI, 1 MI, 1 OF, 1 Hitter, 1 Libre
+Uniquement des cartes de la saison 2023 et 2024

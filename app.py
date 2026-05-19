@@ -178,6 +178,25 @@ def load_ml_predictions() -> pd.DataFrame:
         df["n_games_gw"] = None
     else:
         df["n_games_gw"] = pd.to_numeric(df["n_games_gw"], errors="coerce")
+    for _col in ("pred_A", "pred_B", "pred_C",
+                 "platoon_factor_A", "platoon_factor_B", "platoon_factor_C"):
+        if _col not in df.columns:
+            df[_col] = None
+        else:
+            df[_col] = pd.to_numeric(df[_col], errors="coerce")
+    return df
+
+
+@st.cache_data(ttl=3600)
+def load_all_players_market() -> pd.DataFrame:
+    p = _DATA_DIR / "all_players_market.parquet"
+    if not p.exists():
+        return pd.DataFrame()
+    df = pd.read_parquet(p)
+    for col in ["price_limited_is", "price_limited_oos", "price_rare_is", "price_rare_oos",
+                "price_sr_is", "price_sr_oos", "price_unique_is", "price_unique_oos"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
     return df
 
 
@@ -712,6 +731,7 @@ df_calendar = load_calendar()
 df_prices   = load_card_prices()
 df_ml       = load_ml_predictions()
 df_lb       = load_leaderboard_rewards()
+df_market   = load_all_players_market()
 
 _slug_name_map: dict = (
     df_all.drop_duplicates("player_slug")
@@ -875,7 +895,7 @@ else:
 
 # ── Tabs ────────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
     "🏆 Défis journaliers",
     "📅 Calendrier",
     "💰 Mes cartes",
@@ -886,6 +906,8 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "🏗️ Équipe",
     "🎖️ Compétitions",
     "📋 Mes lineups",
+    "🛒 Marché",
+    "🔬 Platoon (temp)",
 ])
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1945,6 +1967,10 @@ with tab7:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 with tab8:
+    _t8_comp, _t8_arena = st.tabs(["🏗️ Compétitions", "🏟️ Arena"])
+
+
+with _t8_comp:
     from collections import Counter as _Counter
 
     _EMPTY_TEAM = lambda: {s: None for s in ["SP", "RP", "CI", "MI", "OF", "Flex", "Libre"]}
@@ -1986,8 +2012,10 @@ with tab8:
 
     # ── State par mode × rareté ────────────────────────────────────────────────
     _tb_sk = f"tb_teams_{tb_mode}_{tb_rar}"
+    _DEFAULT_N_TEAMS_INIT = {"Champions": 3, "Hot Streak": 4, "Challenger": 4}
     if _tb_sk not in st.session_state:
-        st.session_state[_tb_sk] = [_EMPTY_TEAM()]
+        _n_init = _DEFAULT_N_TEAMS_INIT.get(tb_mode, 1)
+        st.session_state[_tb_sk] = [_EMPTY_TEAM() for _ in range(_n_init)]
     tb_teams = st.session_state[_tb_sk]
 
     # ── Joueurs disponibles (hors blessés) ────────────────────────────────────
@@ -2105,6 +2133,9 @@ with tab8:
     # Score effectif = score de référence × power de la carte (bonus Sorare)
     _power_num = pd.to_numeric(df_tb["card_power"], errors="coerce").fillna(1.0)
     df_tb["proj_score_eff"] = (_base_score * _power_num).round(1)
+    # Score effectif figé pour chaque source (pour sauvegarder les 2 suggestions au save)
+    df_tb["proj_score_eff_auto"]   = (pd.to_numeric(df_tb["proj_score"],        errors="coerce").fillna(0.0) * _power_num).round(1)
+    df_tb["proj_score_eff_sorare"] = (pd.to_numeric(df_tb["proj_score_sorare"], errors="coerce").fillna(0.0) * _power_num).round(1)
 
     # Exclure les SP non-probables quand les données de calendrier sont disponibles
     if _tsched8:
@@ -2141,27 +2172,33 @@ with tab8:
             src = "ML" if r.get("proj_score_ml") is not None else "~"
         return f"{x}  [{pos} · {is_} · {sc:.0f} pts eff. · ×{pwr:.3f} · {src}]"
 
-    def _tb_suggest(other_used: set, other_used_slugs: set, require_is: bool) -> dict:
-        """Greedy team builder : maximise proj_score_eff, force ≥6 IS si requis."""
+    def _tb_suggest(other_used: set, other_used_slugs: set, require_is: bool,
+                    score_col: str = "proj_score_eff",
+                    slot_pos: dict | None = None,
+                    df_pool: pd.DataFrame | None = None) -> dict:
+        """Greedy team builder : maximise score_col, force ≥6 IS si requis."""
+        _df   = df_pool if df_pool is not None else df_tb
+        _spos = slot_pos if slot_pos is not None else _SLOT_POS
         result:      dict = {}
-        used:        set  = set()   # card_names utilisées dans cette suggestion
-        used_slugs:  set  = set()   # player_slugs utilisés dans cette suggestion
-        is_map   = df_tb.set_index("card_name")["is_eligible"].to_dict()
-        slug_map = df_tb.set_index("card_name")["player_slug"].to_dict()
-        slots = list(_SLOT_POS.items())
+        used:        set  = set()
+        used_slugs:  set  = set()
+        is_map   = _df.set_index("card_name")["is_eligible"].to_dict()
+        slug_map = _df.set_index("card_name")["player_slug"].to_dict()
+        slots = list(_spos.items())
         n     = len(slots)
         for i, (slot_name, valid_pos) in enumerate(slots):
             is_so_far  = sum(1 for c in used if is_map.get(c, False))
             remaining  = n - i
             must_be_is = max(0, 6 - is_so_far - (remaining - 1)) if require_is else 0
 
+            _eff_col = score_col if score_col in _df.columns else "proj_score_eff"
             cands_all = (
-                df_tb[
-                    df_tb["position_agg"].isin(valid_pos) &
-                    ~df_tb["card_name"].isin(other_used | used) &
-                    ~df_tb["player_slug"].isin(other_used_slugs | used_slugs)
+                _df[
+                    _df["position_agg"].isin(valid_pos) &
+                    ~_df["card_name"].isin(other_used | used) &
+                    ~_df["player_slug"].isin(other_used_slugs | used_slugs)
                 ]
-                .sort_values("proj_score_eff", ascending=False)
+                .sort_values(_eff_col, ascending=False)
             )
             if cands_all.empty:
                 result[slot_name] = None
@@ -2268,15 +2305,17 @@ with tab8:
                     # Si la carte courante n'est plus disponible, la garder visible
                     if _current and _current not in _opts:
                         _opts.insert(1, _current)
-                    _idx = _opts.index(_current) if _current in _opts else 0
+                    # Initialise l'état widget depuis le dict équipe (évite le conflit index= vs session_state)
+                    _wkey = f"tb_{_ti}_{_sname}"
+                    if _wkey not in st.session_state:
+                        st.session_state[_wkey] = _current if (_current and _current in _opts) else "—"
 
                     _chosen = st.selectbox(
                         f"**{_sname}**"
                         + (" *(CI/MI/OF)*" if _sname == "Flex" else "")
                         + (" *(CI/MI/OF)*" if _sname == "Libre" else ""),
                         _opts,
-                        index=_idx,
-                        key=f"tb_{_ti}_{_sname}",
+                        key=_wkey,
                         format_func=_fmt_opt,
                     )
                     tb_teams[_ti][_sname] = _chosen if _chosen != "—" else None
@@ -2335,7 +2374,7 @@ with tab8:
                     disabled=_sv_disabled,
                     help="Aucun joueur dans l'équipe." if _sv_disabled else "Sauvegarde l'équipe pour comparer avec les résultats réels.",
                 ):
-                    def _slot_data(card):
+                    def _slot_data(card, eff_col="proj_score_eff"):
                         if not card:
                             return None
                         r = _cl.get(card, {})
@@ -2343,24 +2382,25 @@ with tab8:
                             "card_name":      card,
                             "player_slug":    r.get("player_slug"),
                             "player_name":    _slug_name_map.get(r.get("player_slug", ""), card),
-                            "proj_score_eff": r.get("proj_score_eff"),
+                            "proj_score_eff": r.get(eff_col),
                             "proj_score":     r.get("proj_score"),
                             "card_power":     r.get("card_power"),
                         }
 
-                    # Suggestion de référence (algo from scratch, hors équipes croisées)
-                    _sug_ref = _tb_suggest(_other_used, set(), _require_is)
+                    _sug_auto   = _tb_suggest(_other_used, set(), _require_is, score_col="proj_score_eff_auto")
+                    _sug_sorare = _tb_suggest(_other_used, set(), _require_is, score_col="proj_score_eff_sorare")
 
                     _entry = {
-                        "lineup_id":       str(uuid.uuid4()),
-                        "saved_at":        datetime.now(timezone.utc).isoformat(),
-                        "gw_int":          int(_tb_gw8),
-                        "manager":         sel_manager,
-                        "mode":            tb_mode,
-                        "rarity":          tb_rar,
-                        "score_src":       tb_score_src,
-                        "slots":           {s: _slot_data(c) for s, c in tb_teams[_ti].items()},
-                        "suggested_slots": {s: _slot_data(c) for s, c in _sug_ref.items()},
+                        "lineup_id":              str(uuid.uuid4()),
+                        "saved_at":               datetime.now(timezone.utc).isoformat(),
+                        "gw_int":                 int(_tb_gw8),
+                        "manager":                sel_manager,
+                        "mode":                   tb_mode,
+                        "rarity":                 tb_rar,
+                        "score_src":              tb_score_src,
+                        "slots":                  {s: _slot_data(c) for s, c in tb_teams[_ti].items()},
+                        "suggested_slots_auto":   {s: _slot_data(c, "proj_score_eff_auto")   for s, c in _sug_auto.items()},
+                        "suggested_slots_sorare": {s: _slot_data(c, "proj_score_eff_sorare") for s, c in _sug_sorare.items()},
                     }
                     _persist_lineup(_entry)
                     st.success(f"Équipe sauvegardée pour la GW{_tb_gw8} !")
@@ -2369,6 +2409,273 @@ with tab8:
 # ═══════════════════════════════════════════════════════════════════════════════
 # TAB 9 — COMPÉTITIONS & RÉCOMPENSES
 # ═══════════════════════════════════════════════════════════════════════════════
+
+with tab9:
+    pass
+
+
+# ── Construction d'équipes Arena ──────────────────────────────────────────────
+
+with _t8_arena:
+    _AL_SLUGS9 = frozenset({
+        "oakland-athletics", "baltimore-orioles", "boston-red-sox",
+        "chicago-white-sox", "cleveland-guardians", "detroit-tigers",
+        "houston-astros", "kansas-city-royals", "los-angeles-angels",
+        "minnesota-twins", "new-york-yankees", "seattle-mariners",
+        "tampa-bay-rays", "texas-rangers",
+    })
+    _NL_SLUGS9 = frozenset({
+        "arizona-diamondbacks", "atlanta-braves", "chicago-cubs",
+        "cincinnati-reds", "colorado-rockies", "los-angeles-dodgers",
+        "miami-marlins", "milwaukee-brewers", "new-york-mets",
+        "philadelphia-phillies", "pittsburgh-pirates", "san-diego-padres",
+        "san-francisco-giants", "st-louis-cardinals",
+    })
+    _SLOTS_7_AR9 = {
+        "SP": ["SP"], "RP": ["RP"], "CI": ["CI"], "MI": ["MI"], "OF": ["OF"],
+        "Hitter": ["CI", "MI", "OF"],
+        "Libre":  ["SP", "RP", "CI", "MI", "OF"],
+    }
+    _SLOTS_S2_AR9 = {
+        "SP1": ["SP"], "SP2": ["SP"],
+        "H1": ["CI", "MI", "OF"], "H2": ["CI", "MI", "OF"], "H3": ["CI", "MI", "OF"],
+    }
+    _SLOTS_S5_AR9 = {f"H{i}": ["CI", "MI", "OF"] for i in range(1, 6)}
+    _ARENA_DEFS9 = {
+        "Standard":         {"slots": _SLOTS_7_AR9,  "max_club": 6, "filter": None,     "n": 7},
+        "Beginner":         {"slots": _SLOTS_7_AR9,  "max_club": 6, "filter": None,     "n": 7},
+        "Elite":            {"slots": _SLOTS_7_AR9,  "max_club": 6, "filter": None,     "n": 7},
+        "American (AL)":    {"slots": _SLOTS_7_AR9,  "max_club": 6, "filter": "AL",     "n": 7},
+        "National (NL)":    {"slots": _SLOTS_7_AR9,  "max_club": 6, "filter": "NL",     "n": 7},
+        "OG (2022)":        {"slots": _SLOTS_7_AR9,  "max_club": 6, "filter": "OG",     "n": 7},
+        "Legacy (2023-24)": {"slots": _SLOTS_7_AR9,  "max_club": 6, "filter": "Legacy", "n": 7},
+        "Sandlot 2SP+3H":   {"slots": _SLOTS_S2_AR9, "max_club": 4, "filter": None,     "n": 5},
+        "Sandlot 5H":       {"slots": _SLOTS_S5_AR9, "max_club": 4, "filter": None,     "n": 5},
+    }
+
+    _ar9c1, _ar9c2, _ar9c3 = st.columns([3, 2, 2])
+    with _ar9c1:
+        _ar9_type = st.selectbox("Type d'Arena", list(_ARENA_DEFS9.keys()), key="ar9_type")
+    with _ar9c2:
+        _ar9_rar = st.radio("Rareté", ["limited", "rare", "super_rare", "unique"],
+                            horizontal=True, key="ar9_rar")
+    with _ar9c3:
+        _ar9_ssrc = st.radio("Score", ["Auto (ML → Hist.)", "Sorare GW+"],
+                             horizontal=True, key="ar9_ssrc")
+
+    _ar9d    = _ARENA_DEFS9[_ar9_type]
+    _ar9_sl  = _ar9d["slots"]
+    _ar9_mc  = _ar9d["max_club"]
+    _ar9_flt = _ar9d["filter"]
+    _ar9_n   = _ar9d["n"]
+
+    _df_ar9 = (
+        df_prices[
+            (df_prices["gallery_manager"] == sel_manager) &
+            (df_prices["card_display_rarity"].str.lower() == _ar9_rar.lower()) &
+            ~df_prices["player_slug"].isin(_injured_slugs)
+        ]
+        .drop_duplicates("card_name")
+        .copy()
+    )
+    _df_ar9["position_agg"] = _df_ar9["card_display_position"].map(POSITION_AGG)
+    _df_ar9["is_eligible"]  = _df_ar9["in_season_eligible"] == True
+
+    if _ar9_flt == "AL":
+        _df_ar9 = _df_ar9[_df_ar9["active_club_slug"].isin(_AL_SLUGS9)]
+    elif _ar9_flt == "NL":
+        _df_ar9 = _df_ar9[_df_ar9["active_club_slug"].isin(_NL_SLUGS9)]
+    elif _ar9_flt == "OG":
+        _df_ar9 = _df_ar9[_df_ar9["card_name"].str.contains("2022-23", na=False, regex=False)]
+    elif _ar9_flt == "Legacy":
+        _df_ar9 = _df_ar9[
+            _df_ar9["card_name"].str.contains("2023-24", na=False, regex=False) |
+            _df_ar9["card_name"].str.contains("2024-25", na=False, regex=False)
+        ]
+
+    _ar9_pwr = pd.to_numeric(_df_ar9["card_power"], errors="coerce").fillna(1.0)
+    if not df_ml.empty:
+        _ml_ar9 = (
+            df_ml[df_ml["gallery_manager"] == sel_manager]
+            .drop_duplicates("player_slug")
+            .set_index("player_slug")["pred_median"]
+        )
+        _df_ar9["_ml_val"] = _df_ar9["player_slug"].map(_ml_ar9)
+    else:
+        _df_ar9["_ml_val"] = None
+
+    _ar9_slugs = tuple(_df_ar9["player_slug"].unique())
+    _ar9_avg   = load_player_avg_scores(_ar9_slugs, FENETRE_OPTIONS[fenetre]) if _ar9_slugs else pd.DataFrame()
+    _ar9_smap  = _ar9_avg.set_index("player_slug")["avg_score"].to_dict() if not _ar9_avg.empty else {}
+    _df_ar9["proj_score_hist"]   = _df_ar9["player_slug"].map(_ar9_smap).fillna(0.0)
+    _df_ar9["proj_score_auto"]   = (
+        pd.to_numeric(_df_ar9["_ml_val"], errors="coerce")
+        .combine_first(_df_ar9["proj_score_hist"])
+    )
+    _df_ar9["proj_score_sorare"] = pd.to_numeric(
+        _df_ar9.get("next_gw_projected_score", pd.Series(dtype=float)), errors="coerce"
+    )
+    _ar9_base = (
+        _df_ar9["proj_score_sorare"].fillna(0.0) if _ar9_ssrc == "Sorare GW+"
+        else _df_ar9["proj_score_auto"].fillna(0.0)
+    )
+    _df_ar9["proj_score_eff"] = (_ar9_base * _ar9_pwr).round(1)
+    _cl_ar9 = _df_ar9.set_index("card_name").to_dict("index")
+
+    def _fmt_opt_ar9(x: str) -> str:
+        if x == "—":
+            return "—"
+        r = _cl_ar9.get(x, {})
+        pos = POSITION_EXACT.get(r.get("card_display_position", ""), "?")
+        try:
+            sc = float(r.get("proj_score_eff") or 0.0)
+        except (TypeError, ValueError):
+            sc = 0.0
+        try:
+            pwr = float(r.get("card_power") or 1.0)
+        except (TypeError, ValueError):
+            pwr = 1.0
+        return f"{x}  [{pos} · {sc:.0f} pts eff. · ×{pwr:.3f}]"
+
+    _ar9_sk  = f"arena_{_ar9_type}_{_ar9_rar}"
+    _EMPTY_AR9 = lambda: {s: None for s in _ar9_sl}
+    if _ar9_sk not in st.session_state or set(st.session_state[_ar9_sk].keys()) != set(_ar9_sl.keys()):
+        st.session_state[_ar9_sk] = _EMPTY_AR9()
+    _ar9_team = st.session_state[_ar9_sk]
+
+    if _df_ar9.empty:
+        st.warning(f"Aucune carte {_ar9_rar} disponible pour cette arena.")
+    else:
+        _ar9_global_slug = (
+            df_prices[df_prices["gallery_manager"] == sel_manager]
+            .drop_duplicates("card_name")
+            .set_index("card_name")["player_slug"]
+            .to_dict()
+        )
+
+        _ar9_btn1, _ar9_btn2 = st.columns([2, 2])
+        with _ar9_btn1:
+            if st.button("✨ Suggérer l'équipe", key="ar9_sug"):
+                _sug_ar9 = _tb_suggest(set(), set(), False,
+                                       score_col="proj_score_eff",
+                                       slot_pos=_ar9_sl,
+                                       df_pool=_df_ar9)
+                st.session_state[_ar9_sk] = _sug_ar9
+                for sl, cn in _sug_ar9.items():
+                    st.session_state[f"ar9s_{_ar9_type}_{_ar9_rar}_{sl}"] = cn if cn else "—"
+                st.rerun()
+        with _ar9_btn2:
+            if st.button("🗑️ Vider", key="ar9_clr"):
+                st.session_state[_ar9_sk] = _EMPTY_AR9()
+                for sl in _ar9_sl:
+                    st.session_state[f"ar9s_{_ar9_type}_{_ar9_rar}_{sl}"] = "—"
+                st.rerun()
+
+        _half_ar9 = (len(_ar9_sl) + 1) // 2
+        _col_la9, _col_ra9 = st.columns(2)
+        for _si9, (_sn9, _vp9) in enumerate(_ar9_sl.items()):
+            _col9 = _col_la9 if _si9 < _half_ar9 else _col_ra9
+            with _col9:
+                _in_used9  = {v for k, v in _ar9_team.items() if v and k != _sn9}
+                _in_slugs9 = {_ar9_global_slug[c] for c in _in_used9 if c in _ar9_global_slug}
+                _cands9 = (
+                    _df_ar9[
+                        _df_ar9["position_agg"].isin(_vp9) &
+                        ~_df_ar9["card_name"].isin(_in_used9) &
+                        ~_df_ar9["player_slug"].isin(_in_slugs9)
+                    ]
+                    .sort_values("proj_score_eff", ascending=False)
+                )
+                _opts9 = ["—"] + _cands9["card_name"].tolist()
+                _cur9  = _ar9_team.get(_sn9)
+                if _cur9 and _cur9 not in _opts9:
+                    _opts9.insert(1, _cur9)
+                _wkey9 = f"ar9s_{_ar9_type}_{_ar9_rar}_{_sn9}"
+                if _wkey9 not in st.session_state:
+                    st.session_state[_wkey9] = _cur9 if (_cur9 and _cur9 in _opts9) else "—"
+                _chosen9 = st.selectbox(
+                    f"**{_sn9}**",
+                    _opts9,
+                    key=_wkey9,
+                    format_func=_fmt_opt_ar9,
+                )
+                _ar9_team[_sn9] = _chosen9 if _chosen9 != "—" else None
+
+        _cards9 = [v for v in _ar9_team.values() if v]
+        _nf9    = len(_cards9)
+        if _nf9 > 0:
+            from collections import Counter as _Ctr9
+            _clubs9 = [_cl_ar9.get(c, {}).get("active_club_slug", "") for c in _cards9]
+            _mc9    = max(_Ctr9(_clubs9).values()) if _clubs9 else 0
+            _sc9    = sum(float(_cl_ar9.get(c, {}).get("proj_score_eff") or 0.0) for c in _cards9)
+            _mc_ok9 = _mc9 <= _ar9_mc
+            _mc_clr = "#22c55e" if _mc_ok9 else "#ef4444"
+            _mc_ico = "✅" if _mc_ok9 else "⚠️"
+            st.markdown(
+                f'<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;padding:8px 12px;'
+                f'background:rgba(255,255,255,0.03);border-radius:8px;font-size:0.82rem">'
+                f'<span style="color:{_mc_clr}">{_mc_ico} Club max : {_mc9}/{_ar9_mc}</span>'
+                f'<span style="color:#4CAF50">⚾ Score eff. : <b>{_sc9:.1f}</b> pts</span>'
+                f'<span style="opacity:0.45">{_nf9}/{_ar9_n} slots remplis</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        _img9_cols = st.columns(_ar9_n)
+        for (_sna9, _), _icl9 in zip(_ar9_sl.items(), _img9_cols):
+            _cn9  = _ar9_team.get(_sna9)
+            _img9 = _cl_ar9.get(_cn9 or "", {}).get("picture_url")
+            with _icl9:
+                if _img9:
+                    st.image(_img9, caption=_sna9, use_container_width=True)
+                else:
+                    st.markdown(
+                        f'<div style="height:90px;border:1px dashed rgba(128,128,128,0.3);'
+                        f'border-radius:8px;display:flex;align-items:center;'
+                        f'justify-content:center;font-size:0.7rem;opacity:0.4">{_sna9}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+        st.divider()
+        _sv9_dis = _nf9 == 0
+        try:
+            _, _ar9_gw = load_upcoming_pitchers()
+        except Exception:
+            _ar9_gw = 0
+        if st.button(
+            f"💾 Sauvegarder (GW{_ar9_gw})" if _ar9_gw else "💾 Sauvegarder",
+            key="ar9_save",
+            disabled=_sv9_dis,
+            help="Aucun joueur dans l'équipe." if _sv9_dis else None,
+        ):
+            def _sd9(card):
+                if not card:
+                    return None
+                r = _cl_ar9.get(card, {})
+                return {
+                    "card_name":      card,
+                    "player_slug":    r.get("player_slug"),
+                    "player_name":    _slug_name_map.get(r.get("player_slug", ""), card),
+                    "proj_score_eff": r.get("proj_score_eff"),
+                    "proj_score":     None,
+                    "card_power":     r.get("card_power"),
+                }
+            _persist_lineup({
+                "lineup_id":              str(uuid.uuid4()),
+                "saved_at":               datetime.now(timezone.utc).isoformat(),
+                "gw_int":                 int(_ar9_gw),
+                "manager":                sel_manager,
+                "mode":                   f"Arena {_ar9_type}",
+                "rarity":                 _ar9_rar,
+                "score_src":              _ar9_ssrc,
+                "slots":                  {s: _sd9(c) for s, c in _ar9_team.items()},
+                "suggested_slots_auto":   None,
+                "suggested_slots_sorare": None,
+            })
+            st.success(f"Équipe Arena {_ar9_type} sauvegardée pour la GW{_ar9_gw} !")
+
+
+# ── Leaderboards & récompenses ────────────────────────────────────────────────
 
 with tab9:
     import math as _math9
@@ -2999,7 +3306,10 @@ with tab10:
                 _lid        = _l10["lineup_id"]
                 _ldate      = _l10["saved_at"][:16].replace("T", " ")
                 _src_label  = _l10.get("score_src", "—")
-                _sug_slots  = _l10.get("suggested_slots", {})
+                # Compat ancien format (suggested_slots) + nouveau format
+                _sug_auto10   = (_l10.get("suggested_slots_auto")
+                                 or _l10.get("suggested_slots") or {})
+                _sug_sorare10 = _l10.get("suggested_slots_sorare") or {}
                 _title      = (
                     f"{_l10['mode']} · {_l10['rarity']} · GW{_l10['gw_int']} "
                     f"· {_src_label} — sauvegardé le {_ldate}"
@@ -3009,7 +3319,7 @@ with tab10:
                     # ── Tableau principal ─────────────────────────────────────
                     _rows10 = []
                     for _slot, _sdata in _l10["slots"].items():
-                        _sug10  = _sug_slots.get(_slot)
+                        _sug10  = _sug_auto10.get(_slot)
                         _modif  = bool(
                             _sdata and _sug10 and
                             _sdata.get("player_slug") != _sug10.get("player_slug")
@@ -3062,52 +3372,329 @@ with tab10:
                         hide_index=True,
                     )
 
-                    # ── Écarts vs suggestion ──────────────────────────────────
-                    _modif_slots = [
-                        s for s, d in _l10["slots"].items()
-                        if d and _sug_slots.get(s)
-                        and d.get("player_slug") != _sug_slots[s].get("player_slug")
-                    ]
-                    if _modif_slots and _sug_slots:
-                        st.markdown("**✏️ Écarts vs suggestion de l'algo**")
-                        _ecart_rows = []
-                        _tot_real_sug = 0.0
-                        _tot_real_act = 0.0
-                        for _slot in _modif_slots:
-                            _act  = _l10["slots"][_slot]
-                            _sug  = _sug_slots[_slot]
-                            _r_act = _gs_gw10.get(_act.get("player_slug")) if _act.get("player_slug") else None
-                            _r_sug = _gs_gw10.get(_sug.get("player_slug")) if _sug.get("player_slug") else None
-                            _gain  = round(_r_act - _r_sug, 1) if (_r_act is not None and _r_sug is not None) else None
-                            if _r_act is not None:
-                                _tot_real_act += _r_act
-                            if _r_sug is not None:
-                                _tot_real_sug += _r_sug
-                            _ecart_rows.append({
-                                "Slot":              _slot,
-                                "Joué":              _act.get("player_name", "—"),
-                                "Réel joué":         round(float(_r_act), 1) if _r_act is not None else None,
-                                "Suggéré":           _sug.get("player_name", "—"),
-                                "Réel suggéré":      round(float(_r_sug), 1) if _r_sug is not None else None,
-                                "Gain/Perte":        _gain,
+                    # ── Comparaison vs suggestions ────────────────────────────
+                    def _render_ecart10(sug_dict, label, key_sfx):
+                        if not sug_dict:
+                            return
+                        _diff_slots = [
+                            s for s, d in _l10["slots"].items()
+                            if d and sug_dict.get(s)
+                            and d.get("player_slug") != sug_dict[s].get("player_slug")
+                        ]
+                        if not _diff_slots:
+                            st.caption(f"✅ Votre équipe est identique à la suggestion {label}.")
+                            return
+                        st.markdown(f"**✏️ Écarts vs suggestion {label}**")
+                        _erows = []
+                        _tot_act = 0.0
+                        _tot_sg  = 0.0
+                        for _s in _diff_slots:
+                            _a = _l10["slots"][_s]
+                            _g = sug_dict[_s]
+                            _ra = _gs_gw10.get(_a.get("player_slug")) if _a.get("player_slug") else None
+                            _rs = _gs_gw10.get(_g.get("player_slug")) if _g.get("player_slug") else None
+                            _gn = round(_ra - _rs, 1) if (_ra is not None and _rs is not None) else None
+                            if _ra is not None: _tot_act += _ra
+                            if _rs is not None: _tot_sg  += _rs
+                            _erows.append({
+                                "Slot":         _s,
+                                "Joué":         _a.get("player_name", "—"),
+                                "Prédit joué":  round(float(_a.get("proj_score_eff") or 0), 1),
+                                "Réel joué":    round(float(_ra), 1) if _ra is not None else None,
+                                "Suggéré":      _g.get("player_name", "—"),
+                                "Prédit sug.":  round(float(_g.get("proj_score_eff") or 0), 1),
+                                "Réel suggéré": round(float(_rs), 1) if _rs is not None else None,
+                                "Gain/Perte":   _gn,
                             })
-
-                        _df_ecart = pd.DataFrame(_ecart_rows)
                         st.dataframe(
-                            _df_ecart.style.map(_color_diff10, subset=["Gain/Perte"]),
-                            use_container_width=True,
-                            hide_index=True,
+                            pd.DataFrame(_erows).style.map(_color_diff10, subset=["Gain/Perte"]),
+                            use_container_width=True, hide_index=True,
                         )
-
-                        if _has_real and _ecart_rows:
-                            _delta_sug = round(_tot_real_act - _tot_real_sug, 1)
-                            _msg = (
-                                f"Sur ces slots modifiés : **{_delta_sug:+.1f} pts** "
-                                f"({'mieux' if _delta_sug >= 0 else 'moins bien'} que la suggestion)"
+                        if _has_real and _erows:
+                            _delta = round(_tot_act - _tot_sg, 1)
+                            st.caption(
+                                f"Sur ces slots : **{_delta:+.1f} pts** "
+                                f"({'mieux' if _delta >= 0 else 'moins bien'} que la suggestion {label})"
                             )
-                            st.caption(_msg)
+
+                    _render_ecart10(_sug_auto10,   "Auto (ML)", f"{_lid}_auto")
+                    if _sug_sorare10:
+                        st.divider()
+                        _render_ecart10(_sug_sorare10, "Sorare GW+", f"{_lid}_sor")
 
                     # ── Bouton supprimer ──────────────────────────────────────
                     if st.button("🗑️ Supprimer ce lineup", key=f"del10_{_lid}"):
                         _delete_lineup(_lid)
                         st.rerun()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 11 — MARCHÉ (scores ML + prix pour tous les joueurs)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+with tab11:
+    if df_ml.empty:
+        st.info("Aucune prédiction ML disponible. Lancez `update_data.py` pour générer les données.")
+    else:
+        try:
+            _df_p11, _gw11 = load_upcoming_pitchers()
+        except Exception:
+            _df_p11, _gw11 = pd.DataFrame(), 0
+
+        # Construire le dataframe combiné : scores ML + prix marché
+        _ml11 = df_ml[["player_slug", "player_name", "position", "team_slug",
+                        "n_games_gw", "pred_median", "pred_lo", "pred_hi",
+                        "gallery_manager"]].copy()
+        _ml11["n_games_gw"]  = pd.to_numeric(_ml11["n_games_gw"],  errors="coerce").fillna(0).astype(int)
+        _ml11["pred_median"] = pd.to_numeric(_ml11["pred_median"], errors="coerce")
+        _ml11["ml_score"]    = (_ml11["pred_median"] * _ml11["n_games_gw"]).round(1)
+        _ml11["position_agg"] = _ml11["position"].map(lambda x: POSITION_AGG.get(x, x) if x else x)
+
+        _price_cols11 = ["price_limited_is", "price_limited_oos",
+                         "price_rare_is", "price_rare_oos",
+                         "price_sr_is", "price_sr_oos",
+                         "price_unique_is", "price_unique_oos"]
+
+        if not df_market.empty:
+            _ml11 = _ml11.merge(
+                df_market[["player_slug"] + [c for c in _price_cols11 if c in df_market.columns]],
+                on="player_slug", how="left",
+            )
+        else:
+            for c in _price_cols11:
+                _ml11[c] = float("nan")
+
+        _ml11["valeur_lim_is"] = (_ml11["ml_score"] / _ml11["price_limited_is"]).round(3)
+
+        _gw_lbl11 = f"GW{_gw11}" if _gw11 else "prochaine GW"
+        st.subheader(f"{_gw_lbl11} — Score ML + Prix marché ({len(_ml11)} joueurs)")
+
+        if df_market.empty:
+            st.warning(
+                "Aucun prix disponible. Lancez `python update_data.py --prices-all` "
+                "pour récupérer les prix de tous les joueurs GW (~10k appels API)."
+            )
+        elif _ml11["price_limited_is"].notna().sum() < len(_ml11) * 0.5:
+            st.info(
+                f"Prix disponibles pour {_ml11['price_limited_is'].notna().sum()} joueurs sur {len(_ml11)}. "
+                "Lancez `python update_data.py --prices-all` pour étendre la couverture."
+            )
+
+        # ── Filtres ───────────────────────────────────────────────────────────
+        _c11a, _c11b, _c11c, _c11d = st.columns([2, 2, 2, 2])
+        with _c11a:
+            _pos_filter11 = st.multiselect(
+                "Position", ["SP", "RP", "CI", "MI", "OF"],
+                default=[], key="mkt11_pos",
+            )
+        with _c11b:
+            _only_priced11 = st.checkbox("Avec prix uniquement", value=False, key="mkt11_priced")
+        with _c11c:
+            _only_gw11 = st.checkbox("En GW uniquement", value=True, key="mkt11_gw")
+        with _c11d:
+            _sort11 = st.selectbox(
+                "Trier par",
+                ["Score ML", "Valeur (pts/€ Lim IS)", "Prix Lim IS", "Prix Lim OOS"],
+                key="mkt11_sort",
+            )
+
+        _sort_col_map11 = {
+            "Score ML":             "ml_score",
+            "Valeur (pts/€ Lim IS)": "valeur_lim_is",
+            "Prix Lim IS":          "price_limited_is",
+            "Prix Lim OOS":         "price_limited_oos",
+        }
+
+        _df11 = _ml11.copy()
+
+        if _only_gw11:
+            _df11 = _df11[_df11["n_games_gw"] > 0]
+
+        if _pos_filter11:
+            _pos_to_raw11 = {
+                "SP":  ["SP", "baseball_starting_pitcher"],
+                "RP":  ["RP", "baseball_relief_pitcher"],
+                "CI":  ["CI", "baseball_first_base", "baseball_third_base", "baseball_designated_hitter"],
+                "MI":  ["MI", "baseball_second_base", "baseball_shortstop", "baseball_catcher"],
+                "OF":  ["OF", "baseball_outfield"],
+            }
+            _allowed11 = set()
+            for _p in _pos_filter11:
+                _allowed11.update(_pos_to_raw11.get(_p, [_p]))
+            _df11 = _df11[_df11["position"].isin(_allowed11) | _df11["position_agg"].isin(_pos_filter11)]
+
+        if _only_priced11:
+            _df11 = _df11[_df11["price_limited_is"].notna() | _df11["price_limited_oos"].notna()]
+
+        _sort_key11 = _sort_col_map11.get(_sort11, "ml_score")
+        if _sort_key11 in _df11.columns:
+            _df11 = _df11.sort_values(_sort_key11, ascending=False, na_position="last")
+
+        # ── Affichage dataframe ───────────────────────────────────────────────
+        _display_rename11 = {
+            "player_name":      "Joueur",
+            "position_agg":     "Pos",
+            "team_slug":        "Équipe",
+            "n_games_gw":       "N matchs",
+            "ml_score":         "Score ML",
+            "price_limited_is":  "Lim IS (€)",
+            "price_limited_oos": "Lim OOS (€)",
+            "price_rare_is":     "Rare IS (€)",
+            "price_rare_oos":    "Rare OOS (€)",
+            "price_sr_is":       "SR IS (€)",
+            "price_sr_oos":      "SR OOS (€)",
+            "price_unique_is":   "Unique IS (€)",
+            "price_unique_oos":  "Unique OOS (€)",
+            "valeur_lim_is":     "Pts/€ Lim IS",
+            "gallery_manager":   "Galerie",
+        }
+        _show_cols11 = ["player_name", "position_agg", "team_slug", "n_games_gw", "ml_score",
+                        "price_limited_is", "price_limited_oos",
+                        "price_rare_is", "price_rare_oos",
+                        "price_sr_is", "price_sr_oos",
+                        "price_unique_is", "price_unique_oos",
+                        "valeur_lim_is", "gallery_manager"]
+        _show_cols11 = [c for c in _show_cols11 if c in _df11.columns]
+
+        _col_cfg11 = {
+            "Joueur":       st.column_config.TextColumn(),
+            "Score ML":     st.column_config.NumberColumn(format="%.1f"),
+            "Lim IS (€)":   st.column_config.NumberColumn(format="%.0f"),
+            "Lim OOS (€)":  st.column_config.NumberColumn(format="%.0f"),
+            "Rare IS (€)":  st.column_config.NumberColumn(format="%.0f"),
+            "Rare OOS (€)": st.column_config.NumberColumn(format="%.0f"),
+            "SR IS (€)":    st.column_config.NumberColumn(format="%.0f"),
+            "SR OOS (€)":   st.column_config.NumberColumn(format="%.0f"),
+            "Unique IS (€)": st.column_config.NumberColumn(format="%.0f"),
+            "Unique OOS (€)": st.column_config.NumberColumn(format="%.0f"),
+            "Pts/€ Lim IS": st.column_config.NumberColumn(format="%.3f"),
+        }
+
+        st.dataframe(
+            _df11[_show_cols11].rename(columns=_display_rename11),
+            use_container_width=True,
+            column_config=_col_cfg11,
+            hide_index=True,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 12 — Comparaison prédictions platoon (temporaire)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+with tab12:
+    st.subheader("🔬 Comparaison prédictions platoon — GW à venir")
+    st.caption(
+        "Onglet temporaire : compare les 5 indicateurs de score (Base EWMA, Sorare GW+, "
+        "Options A/B/C platoon). À supprimer après validation."
+    )
+
+    if df_ml.empty:
+        st.info("Aucune prédiction ML. Lance `python ml_predict_gw.py`.")
+    else:
+        _has_plat12 = df_ml["pred_A"].notna().any()
+        _PITCHER_POS12 = {"SP", "RP", "baseball_starting_pitcher", "baseball_relief_pitcher"}
+
+        _c12a, _c12b, _c12c = st.columns([2, 2, 3])
+        with _c12a:
+            _mgr_opts12 = ["Tous"] + sorted(df_ml["gallery_manager"].dropna().unique().tolist())
+            _filt_mgr12 = st.radio("Manager", _mgr_opts12, horizontal=True, key="plt12_mgr")
+        with _c12b:
+            _filt_pos12 = st.radio(
+                "Position", ["Tous", "Hitters", "Pitchers"],
+                horizontal=True, key="plt12_pos",
+            )
+        with _c12c:
+            _sort_opts12 = ["Option C (hybride)", "Option B (league avg)",
+                            "Option A (perso.)", "Base EWMA", "Sorare GW+"]
+            _sort12 = st.radio("Trier par", _sort_opts12, horizontal=True, key="plt12_sort")
+
+        _df12 = df_ml.copy()
+        if _filt_mgr12 != "Tous":
+            _df12 = _df12[_df12["gallery_manager"] == _filt_mgr12]
+        if _filt_pos12 == "Hitters":
+            _df12 = _df12[~_df12["position"].isin(_PITCHER_POS12)]
+        elif _filt_pos12 == "Pitchers":
+            _df12 = _df12[_df12["position"].isin(_PITCHER_POS12)]
+
+        # Scores GW totaux = prédiction par match × n_games_gw
+        _n12 = pd.to_numeric(_df12["n_games_gw"], errors="coerce").fillna(1)
+        for _c12 in ("pred_median", "pred_A", "pred_B", "pred_C"):
+            if _c12 in _df12.columns:
+                _df12[f"gw_{_c12}"] = (pd.to_numeric(_df12[_c12], errors="coerce") * _n12).round(1)
+
+        _sort_map12 = {
+            "Option C (hybride)":  "gw_pred_C",
+            "Option B (league avg)": "gw_pred_B",
+            "Option A (perso.)":   "gw_pred_A",
+            "Base EWMA":           "gw_pred_median",
+            "Sorare GW+":          "proj_score_sorare",
+        }
+        _sc12 = _sort_map12[_sort12]
+        if _sc12 in _df12.columns:
+            _df12 = _df12.sort_values(_sc12, ascending=False, na_position="last")
+
+        _pos_short12 = {"baseball_starting_pitcher": "SP", "baseball_relief_pitcher": "RP"}
+        _df12["pos_disp"] = _df12["position"].map(lambda x: _pos_short12.get(x, x) if x else "")
+
+        _dcols12 = ["player_name", "pos_disp", "team_slug", "n_games_gw"]
+        if "bat_hand" in _df12.columns:
+            _dcols12.append("bat_hand")
+        if "opp_pitcher_hand" in _df12.columns:
+            _dcols12.append("opp_pitcher_hand")
+        _dcols12.append("gw_pred_median")
+        if "proj_score_sorare" in _df12.columns:
+            _dcols12.append("proj_score_sorare")
+        if _has_plat12:
+            _dcols12 += [
+                "gw_pred_A", "platoon_factor_A",
+                "gw_pred_B", "platoon_factor_B",
+                "gw_pred_C", "platoon_factor_C",
+            ]
+
+        _rename12 = {
+            "player_name": "Joueur", "pos_disp": "Pos", "team_slug": "Équipe",
+            "n_games_gw": "GW matchs", "bat_hand": "Main",
+            "opp_pitcher_hand": "Pitcher(s) adverse(s)",
+            "gw_pred_median": "Base EWMA (GW)",
+            "proj_score_sorare": "Sorare GW+",
+            "gw_pred_A": "Option A — perso. (GW)", "platoon_factor_A": "× A",
+            "gw_pred_B": "Option B — league avg (GW)", "platoon_factor_B": "× B",
+            "gw_pred_C": "Option C — hybride (GW)", "platoon_factor_C": "× C",
+        }
+
+        _disp12 = (
+            _df12[[c for c in _dcols12 if c in _df12.columns]]
+            .rename(columns=_rename12)
+        )
+        for _cn12 in _disp12.select_dtypes("number").columns:
+            _disp12[_cn12] = _disp12[_cn12].round(3 if "×" in _cn12 else 1)
+
+        st.dataframe(_disp12, use_container_width=True, height=600, hide_index=True)
+
+        if not _has_plat12:
+            st.warning(
+                "⚠️ Colonnes platoon absentes — relance `python ml_predict_gw.py` pour les générer."
+            )
+
+        with st.expander("ℹ️ Explication des indicateurs"):
+            st.markdown("""
+**Base EWMA** — EWMA (demi-vie 25 matchs) des scores historiques × nb matchs GW. Pas d'ajustement pitcher.
+
+**Sorare GW+** — Score projeté par Sorare pour la GW Classic.
+
+**Option A — Splits personnels** — Ajuste sur la moyenne réelle du hitter vs pitchers G/D dans l'historique.
+Facteur = `avg_score_vs_main / avg_score_global`. Requiert ≥15 matchs vs cette main ; facteur = ×1.00 si données insuffisantes.
+
+**Option B — League average** — Facteurs MLB moyens selon (main hitter × main pitcher) :
+
+| Hitter \\ Pitcher | Gaucher | Droitier |
+|---|---|---|
+| **Gaucher** | ×0.94 | ×1.03 |
+| **Droitier** | ×1.05 | ×0.97 |
+| **Switch** | ×1.00 | ×1.00 |
+
+**Option C — Hybride** — Splits personnels si ≥15 matchs, mélange progressif entre 5 et 14 matchs, league average si <5 matchs.
+
+*Pitchers : aucun ajustement platoon appliqué (ils affrontent des lineups mixtes).*
+""")
+        st.caption("Source bat_hand : `mlb.players.bat_hand` (Sorare API). Pitcher adverse : `mlb.games.{home,away}_probable_pitcher`.")

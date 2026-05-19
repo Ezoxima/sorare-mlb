@@ -3,12 +3,14 @@ update_data.py
 --------------
 Mise à jour incrémentale de toutes les données MLB.
 
-  [1/6] Galerie          → full refresh (prix, prochain match, etc. changent)
-  [2/6] Game infos       → uniquement les GW absentes de mlb.games
-  [3/6] Game scores/GW   → uniquement les GW absentes de mlb.game_scores
-  [4/6] Nouveaux joueurs → historique complet pour les joueurs galerie sans données
-  [5/6] Précalcul stats  → mlb.gallery_stats_agg (5/10/20 matchs, passe unique)
-  [6/6] Prix cartes      → full refresh (prix volatils)
+  [1/8] Players & équipes → full refresh mlb.players + mlb.teams (lent : 1 appel/joueur)
+  [2/8] Galerie           → full refresh (prix, prochain match, etc. changent)
+  [3/8] Game infos        → uniquement les GW absentes de mlb.games
+  [4/8] Game scores/GW    → uniquement les GW absentes de mlb.game_scores
+  [5/8] Nouveaux joueurs  → historique complet pour les joueurs galerie sans données
+  [6/8] Précalcul stats   → mlb.gallery_stats_agg (5/10/20 matchs, passe unique)
+  [7/8] Prix cartes       → full refresh (prix volatils)
+  [8/8] Export parquet    → fichiers data/*.parquet pour Streamlit
 
 Usage :
     python update_data.py
@@ -33,6 +35,7 @@ from fetch_gw_scores  import fetch_game_scores as _fetch_game_scores, \
                              store as _store_gw_scores
 from fetch_scores     import fetch_scores_for_player, store_scores, get_gallery_slugs
 from fetch_prices     import fetch_prices_for_player, store_prices, _load_fx_rates
+from init_ref_data    import fetch_teams, store_teams, fetch_and_store_players
 
 SORARE_API = "https://api.sorare.com/graphql"
 SLEEP      = 0.2    # entre les appels fixture-level
@@ -406,11 +409,23 @@ def precompute_gallery_stats(engine) -> None:
 
 # ── 6. Prix cartes ─────────────────────────────────────────────────────────────
 
-def update_prices(engine, headers: dict) -> None:
-    gallery_slugs = get_gallery_slugs(engine)
-    total = len(gallery_slugs)
+def update_prices(engine, headers: dict, include_gw_players: bool = False) -> None:
+    gallery_slugs = set(get_gallery_slugs(engine))
+    if include_gw_players:
+        ml_path = Path(__file__).parent / "data" / "ml_predictions.parquet"
+        if ml_path.exists():
+            gw_slugs = set(pd.read_parquet(ml_path)["player_slug"].dropna().unique())
+        else:
+            gw_slugs = set()
+        extra = gw_slugs - gallery_slugs
+        all_slugs = sorted(gallery_slugs | gw_slugs)
+        print(f"  Mode étendu : {len(all_slugs)} joueurs ({len(gallery_slugs)} galerie + {len(extra)} GW hors galerie)")
+    else:
+        all_slugs = sorted(gallery_slugs)
+
+    total = len(all_slugs)
     if not total:
-        print("  Galerie vide.")
+        print("  Aucun joueur.")
         return
 
     print(f"  {total} joueurs ({total * 8} appels API)...")
@@ -418,7 +433,7 @@ def update_prices(engine, headers: dict) -> None:
     fx = _load_fx_rates()
 
     all_rows = []
-    for i, slug in enumerate(gallery_slugs):
+    for i, slug in enumerate(all_slugs):
         remaining = total - (i + 1)
         if remaining % 20 == 0:
             print(f"    {remaining} joueurs restants...")
@@ -490,6 +505,24 @@ def export_to_parquet(engine) -> None:
         """).to_parquet(data_dir / "card_prices.parquet", index=False)
         print("  card_prices.parquet")
 
+        _df(conn, """
+            SELECT
+                p.player_slug, p.display_name AS player_name, p.team_slug, p.agg_position_1 AS position,
+                MAX(CASE WHEN cp.rarity = 'limited'    AND cp.in_season = true  THEN cp.price_eur END) AS price_limited_is,
+                MAX(CASE WHEN cp.rarity = 'limited'    AND cp.in_season = false THEN cp.price_eur END) AS price_limited_oos,
+                MAX(CASE WHEN cp.rarity = 'rare'       AND cp.in_season = true  THEN cp.price_eur END) AS price_rare_is,
+                MAX(CASE WHEN cp.rarity = 'rare'       AND cp.in_season = false THEN cp.price_eur END) AS price_rare_oos,
+                MAX(CASE WHEN cp.rarity = 'super_rare' AND cp.in_season = true  THEN cp.price_eur END) AS price_sr_is,
+                MAX(CASE WHEN cp.rarity = 'super_rare' AND cp.in_season = false THEN cp.price_eur END) AS price_sr_oos,
+                MAX(CASE WHEN cp.rarity = 'unique'     AND cp.in_season = true  THEN cp.price_eur END) AS price_unique_is,
+                MAX(CASE WHEN cp.rarity = 'unique'     AND cp.in_season = false THEN cp.price_eur END) AS price_unique_oos
+            FROM mlb.card_prices cp
+            INNER JOIN mlb.players p ON cp.player_slug = p.player_slug
+            GROUP BY p.player_slug, p.display_name, p.team_slug, p.agg_position_1
+            ORDER BY p.display_name
+        """).to_parquet(data_dir / "all_players_market.parquet", index=False)
+        print("  all_players_market.parquet")
+
         _df(conn, "SELECT player_slug FROM mlb.player_injuries WHERE active = true").to_parquet(
             data_dir / "injuries.parquet", index=False)
         print("  injuries.parquet")
@@ -539,9 +572,22 @@ def export_to_parquet(engine) -> None:
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import argparse as _argparse
+    _parser = _argparse.ArgumentParser(description="Mise à jour incrémentale des données MLB.")
+    _parser.add_argument(
+        "--prices-all", action="store_true",
+        help="Fetch prices pour tous les joueurs GW (~10k appels API, lent)",
+    )
+    _args = _parser.parse_args()
+
     engine, api_headers, manager_list = _load_config()
 
-    print("\n[1/7] Galerie...")
+    print("\n[1/8] Players & équipes (lent)...")
+    df_teams = fetch_teams(api_headers)
+    store_teams(engine, df_teams)
+    fetch_and_store_players(engine, df_teams["team_slug"].tolist(), api_headers)
+
+    print("\n[2/8] Galerie...")
     refresh_gallery(engine, manager_list, api_headers)
 
     print("\n  Chargement des fixtures CLASSIC disponibles...")
@@ -549,25 +595,25 @@ if __name__ == "__main__":
     completed    = [f for f in all_fixtures if not f["canCompose"]]
     print(f"  {len(completed)} fixtures terminees (GW{completed[0]['gameWeek']} - GW{completed[-1]['gameWeek']})")
 
-    print("\n[2/7] Game infos (box scores)...")
+    print("\n[3/8] Game infos (box scores)...")
     update_game_infos(engine, api_headers, all_fixtures)
 
-    print("\n[3/7] Game scores par GW (tous joueurs)...")
+    print("\n[4/8] Game scores par GW (tous joueurs)...")
     update_gw_scores(engine, api_headers, all_fixtures)
 
-    print("\n[4/7] Historique nouveaux joueurs galerie...")
+    print("\n[5/8] Historique nouveaux joueurs galerie...")
     update_new_players(engine, api_headers)
 
-    print("\n[5/7] Précalcul stats galerie...")
+    print("\n[6/8] Précalcul stats galerie...")
     precompute_gallery_stats(engine)
 
-    print("\n[6/7] Prix cartes...")
-    update_prices(engine, api_headers)
+    print("\n[7/8] Prix cartes...")
+    update_prices(engine, api_headers, include_gw_players=_args.prices_all)
 
-    print("\n[7/7] Export parquet...")
+    print("\n[8/8] Export parquet...")
     export_to_parquet(engine)
 
-    print("\n[8/8] Predictions ML (prochaine GW)...")
+    print("\n[9/9] Predictions ML (prochaine GW)...")
     try:
         from ml_predict_gw import run as ml_run
         ml_run(engine)
