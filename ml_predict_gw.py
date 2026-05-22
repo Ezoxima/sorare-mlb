@@ -47,6 +47,9 @@ PLATOON_B_FACTORS = {          # multiplicateurs league-average (main_hitter, ma
     ("S", "L"): 1.00, ("S", "R"): 1.00,
 }
 MIN_SPLIT_GAMES = 15            # matchs minimum vs une main donnée pour Option A
+HOME_FACTOR = 1.02              # avantage domicile hors park factor (~2%)
+AWAY_FACTOR = 0.98
+OPP_QUALITY_SENSITIVITY = 0.15  # ±15% par 100% d'écart vs lanceur moyen
 
 _PITCHER_POSITIONS = {
     "SP", "RP",
@@ -57,6 +60,72 @@ _PITCHER_POSITIONS = {
 
 def _is_pitcher(pos: str) -> bool:
     return str(pos or "").strip() in _PITCHER_POSITIONS
+
+
+# ── Facteurs parc + météo ──────────────────────────────────────────────────────
+
+def _pf_hitter(park: dict, hand: str) -> float:
+    """Park factor pour un frappeur, normalisé à 1.0. hand: 'L','R','S',''."""
+    h = (hand or "").strip().upper()[:1]
+    key = "l" if h == "L" else ("r" if h == "R" else "overall")
+
+    def _v(stat):
+        d = park.get(stat, {})
+        return float(d.get(key) or d.get("overall") or 100) / 100
+
+    # Pondération : R=40%, HR=35%, H=25%
+    return 0.40 * _v("R") + 0.35 * _v("HR") + 0.25 * _v("H")
+
+
+def _pf_pitcher(park: dict) -> float:
+    """Park factor pour lanceur : inverse de l'environnement offensif (R+HR)."""
+    r_pf  = float(park.get("R",  {}).get("overall") or 100) / 100
+    hr_pf = float(park.get("HR", {}).get("overall") or 100) / 100
+    env   = 0.60 * r_pf + 0.40 * hr_pf
+    return 1 / env if env > 0 else 1.0
+
+
+def _wf_hitter(w: dict | None) -> float:
+    """Facteur météo pour frappeur (1.0 = neutre)."""
+    if not w:
+        return 1.0
+    label = str(w.get("wind_label") or "calm")
+    speed = float(w.get("wind_speed_mph") or 0)
+    temp  = float(w.get("temperature_f") or 72)
+    cond  = str(w.get("condition") or "clear")
+    if label == "dome":
+        return 1.0
+    # Vent : max ±6% à ≥20 mph
+    wind_eff = 0.0
+    if label == "out":
+        wind_eff = +min(speed / 20, 1.0) * 0.06
+    elif label == "in":
+        wind_eff = -min(speed / 20, 1.0) * 0.06
+    # Température : 72°F neutre, ±1% par 10°F (capped ±5%)
+    temp_eff = max(-0.05, min(0.05, (temp - 72) / 100))
+    # Condition
+    cond_eff = -0.05 if cond == "rain" else 0.0
+    return 1.0 + wind_eff + temp_eff + cond_eff
+
+
+def _wf_pitcher(w: dict | None) -> float:
+    """Facteur météo pour lanceur (effet vent inversé vs frappeur)."""
+    if not w:
+        return 1.0
+    label = str(w.get("wind_label") or "calm")
+    speed = float(w.get("wind_speed_mph") or 0)
+    temp  = float(w.get("temperature_f") or 72)
+    cond  = str(w.get("condition") or "clear")
+    if label == "dome":
+        return 1.0
+    wind_eff = 0.0
+    if label == "out":
+        wind_eff = -min(speed / 20, 1.0) * 0.06   # vent sortant nuit au lanceur
+    elif label == "in":
+        wind_eff = +min(speed / 20, 1.0) * 0.06
+    temp_eff = max(-0.05, min(0.05, -(temp - 72) / 100))  # chaleur = mauvais pour lanceur
+    cond_eff = +0.03 if cond == "rain" else 0.0
+    return 1.0 + wind_eff + temp_eff + cond_eff
 
 
 def _exp_weights(n: int) -> np.ndarray:
@@ -195,6 +264,16 @@ def run(engine=None):
         for slug, grp in scores.groupby("player_slug")
     }
 
+    # EWMA des lanceurs (base pour facteur qualité adversaire)
+    pitcher_ewma_map: dict = {}
+    _pit_ewma_vals:   list = []
+    for _s, _arr in scores_grouped.items():
+        if _is_pitcher(_pos_map.get(_s, "")) and len(_arr) >= MIN_GAMES:
+            _ev = float(np.dot(_exp_weights(len(_arr)), _arr))
+            pitcher_ewma_map[_s] = _ev
+            _pit_ewma_vals.append(_ev)
+    league_avg_pitcher = float(np.mean(_pit_ewma_vals)) if _pit_ewma_vals else 17.0
+
     # ── 6b. Donnees platoon ───────────────────────────────────────────────────
     bh_df = pd.read_sql(
         "SELECT player_slug, bat_hand FROM mlb.players WHERE player_slug IN %s",
@@ -203,7 +282,7 @@ def run(engine=None):
     bat_hand_map: dict = bh_df.set_index("player_slug")["bat_hand"].to_dict()
 
     upg = pd.read_sql("""
-        SELECT home_team_slug, away_team_slug,
+        SELECT game_id, game_date, home_team_slug, away_team_slug,
                home_probable_pitcher, away_probable_pitcher
         FROM mlb.games WHERE gw_int = %s
     """, engine, params=(upcoming_gw,))
@@ -219,8 +298,64 @@ def run(engine=None):
         )
         pit_hand_up = ph_df.set_index("player_slug")["bat_hand"].to_dict()
 
+    # ── 6c. Park factors + météo ─────────────────────────────────────────────
+    pf_df = pd.read_sql("""
+        SELECT team_slug, stat, factor_overall, factor_l, factor_r
+        FROM mlb.park_factors
+        WHERE season = (SELECT MAX(season) FROM mlb.park_factors)
+    """, engine)
+    park_data: dict = {}
+    for _, row in pf_df.iterrows():
+        park_data.setdefault(row["team_slug"], {})[row["stat"]] = {
+            "overall": float(row["factor_overall"] or 100),
+            "l":       float(row["factor_l"] or row["factor_overall"] or 100),
+            "r":       float(row["factor_r"] or row["factor_overall"] or 100),
+        }
+
+    weather_df = pd.read_sql("""
+        SELECT w.game_id, w.temperature_f, w.wind_speed_mph,
+               w.wind_label, w.condition
+        FROM mlb.game_weather w
+        JOIN mlb.games g ON w.game_id = g.game_id
+        WHERE g.gw_int = %s
+    """, engine, params=(upcoming_gw,))
+    weather_map: dict = {
+        row["game_id"]: row.to_dict()
+        for _, row in weather_df.iterrows()
+    }
+
+    # Jours de repos par équipe avant le début de la GW
+    rest_df = pd.read_sql("""
+        WITH gw_start AS (
+            SELECT MIN(game_date)::date AS d FROM mlb.games WHERE gw_int = %s
+        ),
+        last_g AS (
+            SELECT team_slug, MAX(game_date::date) AS last_date
+            FROM (
+                SELECT home_team_slug AS team_slug, game_date FROM mlb.games
+                UNION ALL
+                SELECT away_team_slug,               game_date FROM mlb.games
+            ) t
+            CROSS JOIN gw_start
+            WHERE game_date::date < gw_start.d
+            GROUP BY team_slug
+        )
+        SELECT lg.team_slug, (gs.d - lg.last_date)::int AS rest_days
+        FROM last_g lg CROSS JOIN gw_start gs
+    """, engine, params=(upcoming_gw,))
+    rest_days_map: dict = {
+        row["team_slug"]: int(row["rest_days"])
+        for _, row in rest_df.iterrows()
+        if pd.notna(row["rest_days"])
+    }
+
     # Hitters domicile affrontent away_probable_pitcher, visiteurs le home_probable_pitcher
-    team_opp_hands: dict = {}
+    team_opp_hands: dict    = {}
+    team_home_count: dict   = {}
+    team_away_count: dict   = {}
+    team_game_venues: dict  = {}  # {team: [(park_team, game_id), ...]}
+    team_opp_pit_ewma: dict = {}  # {team: [ewma_lanceur_adverse, ...]}
+    team_game_hours: dict   = {}  # {team: [hour_utc, ...]}
     for _, g in upg.iterrows():
         aph = pit_hand_up.get(g.get("away_probable_pitcher") or "")
         if aph and g["home_team_slug"]:
@@ -228,6 +363,37 @@ def run(engine=None):
         hph = pit_hand_up.get(g.get("home_probable_pitcher") or "")
         if hph and g["away_team_slug"]:
             team_opp_hands.setdefault(g["away_team_slug"], []).append(hph)
+        h   = g["home_team_slug"]
+        a   = g["away_team_slug"]
+        gid = g.get("game_id")
+        if h:
+            team_home_count[h] = team_home_count.get(h, 0) + 1
+            if pd.notna(gid):
+                team_game_venues.setdefault(h, []).append((h, gid))
+        if a:
+            team_away_count[a] = team_away_count.get(a, 0) + 1
+            if pd.notna(gid):
+                team_game_venues.setdefault(a, []).append((h, gid))
+
+        # Qualité lanceur adverse (étape 6)
+        away_p = str(g.get("away_probable_pitcher") or "")
+        if away_p and h:
+            ev = pitcher_ewma_map.get(away_p)
+            if ev:
+                team_opp_pit_ewma.setdefault(h, []).append(ev)
+        home_p = str(g.get("home_probable_pitcher") or "")
+        if home_p and a:
+            ev = pitcher_ewma_map.get(home_p)
+            if ev:
+                team_opp_pit_ewma.setdefault(a, []).append(ev)
+
+        # Heure UTC du match (étape 7, jour/nuit)
+        gdt = g.get("game_date")
+        if gdt is not None and pd.notna(gdt):
+            hr = pd.Timestamp(gdt).tz_convert("UTC").hour
+            for t in (h, a):
+                if t:
+                    team_game_hours.setdefault(t, []).append(hr)
 
     hitter_slugs_plat = tuple(
         r["player_slug"] for _, r in players.iterrows()
@@ -273,6 +439,11 @@ def run(engine=None):
                 LEFT JOIN mlb.players p2 ON hg.opp_pitcher_slug = p2.player_slug
                 WHERE p2.bat_hand IS NOT NULL
             """, engine, params=(hitter_slugs_plat,))
+            # Normalise "RIGHT"→"R", "LEFT"→"L", "BOTH"→"S" (switch)
+            spl_df["pitcher_hand"] = (
+                spl_df["pitcher_hand"].str.strip().str.upper().str[:1]
+                .replace("B", "S")
+            )
             for slug_h, grp_h in spl_df.groupby("player_slug"):
                 rec: dict = {"overall_avg": float(grp_h["score"].mean())}
                 for h in ("L", "R"):
@@ -301,7 +472,8 @@ def run(engine=None):
         mu     = pred["pred_median"]
 
         # ── Facteurs platoon ─────────────────────────────────────────────────
-        bh        = (bat_hand_map.get(slug) or "").strip().upper()[:1] or None
+        _bh_raw   = (bat_hand_map.get(slug) or "").strip().upper()[:1]
+        bh        = "S" if _bh_raw == "B" else (_bh_raw or None)  # BOTH→S (switch)
         opp_hands = [ph for ph in team_opp_hands.get(team, []) if ph]
 
         if _is_pitcher(position) or not opp_hands or not bh:
@@ -340,6 +512,56 @@ def run(engine=None):
                     fc_list.append(fb_loc)
             factor_c = sum(fc_list) / len(fc_list) if fc_list else 1.0
 
+        # ── Facteur domicile/extérieur ───────────────────────────────────────
+        n_home = team_home_count.get(team, 0)
+        n_away = team_away_count.get(team, 0)
+        n_ha   = n_home + n_away
+        home_away_factor = (
+            (n_home * HOME_FACTOR + n_away * AWAY_FACTOR) / n_ha
+            if n_ha > 0 else 1.0
+        )
+
+        # ── Park factor + weather factor ─────────────────────────────────────
+        venues     = team_game_venues.get(team, [])
+        is_pit     = _is_pitcher(position)
+        pf_list: list = []
+        wf_list: list = []
+        for park_team, game_id in venues:
+            pd_park = park_data.get(park_team, {})
+            w       = weather_map.get(game_id)
+            if is_pit:
+                pf_list.append(_pf_pitcher(pd_park))
+                wf_list.append(_wf_pitcher(w))
+            else:
+                pf_list.append(_pf_hitter(pd_park, bh or ""))
+                wf_list.append(_wf_hitter(w))
+        park_factor    = round(sum(pf_list) / len(pf_list), 4) if pf_list else 1.0
+        weather_factor = round(sum(wf_list) / len(wf_list), 4) if wf_list else 1.0
+
+        # ── Qualité lanceur adverse (hitters seulement) ──────────────────────
+        opp_ewmas = team_opp_pit_ewma.get(team, [])
+        if is_pit or not opp_ewmas:
+            opp_quality_factor = 1.0
+        else:
+            avg_opp = sum(opp_ewmas) / len(opp_ewmas)
+            ratio   = avg_opp / league_avg_pitcher if league_avg_pitcher > 0 else 1.0
+            opp_quality_factor = round(
+                max(0.80, min(1.20, 1.0 - OPP_QUALITY_SENSITIVITY * (ratio - 1.0))), 4
+            )
+
+        # ── Jour/nuit + repos ────────────────────────────────────────────────
+        hours = team_game_hours.get(team, [])
+        if hours:
+            n_day = sum(1 for hr in hours if hr < 20)
+            # Hitters pénalisés en journée, pitchers avantagés
+            day_eff          = (-0.03 if not is_pit else +0.03) * (n_day / len(hours))
+            day_night_factor = round(1.0 + day_eff, 4)
+        else:
+            day_night_factor = 1.0
+
+        rd = rest_days_map.get(team, 1)
+        rest_factor = 0.98 if rd == 0 else (1.02 if rd >= 3 else 1.0)
+
         rows.append({
             "player_slug":      slug,
             "player_name":      player["player_name"],
@@ -363,6 +585,21 @@ def run(engine=None):
             "pred_A":           round(mu * factor_a, 3),
             "pred_B":           round(mu * factor_b, 3),
             "pred_C":           round(mu * factor_c, 3),
+            "n_home_games":     n_home,
+            "n_away_games":     n_away,
+            "home_away_factor": round(home_away_factor, 4),
+            "park_factor":        park_factor,
+            "weather_factor":     weather_factor,
+            "opp_quality_factor": opp_quality_factor,
+            "day_night_factor":   day_night_factor,
+            "rest_factor":        rest_factor,
+            "pred_contextual":    round(
+                mu * factor_c
+                   * park_factor * weather_factor
+                   * home_away_factor * opp_quality_factor
+                   * day_night_factor * rest_factor,
+                3
+            ),
         })
 
     if not rows:
@@ -382,8 +619,10 @@ if __name__ == "__main__":
     df = run()
     if not df.empty:
         print("\nTop 20 (pred_median desc) :")
-        print(df[["player_name", "position", "n_games_gw", "n_games_history",
-                   "pred_lo", "pred_median", "pred_hi"]]
-              .sort_values("pred_median", ascending=False)
+        print(df[["player_name", "position", "n_games_gw",
+                   "pred_median", "park_factor", "weather_factor",
+                   "opp_quality_factor", "day_night_factor", "rest_factor",
+                   "pred_contextual"]]
+              .sort_values("pred_contextual", ascending=False)
               .head(20)
               .to_string(index=False))

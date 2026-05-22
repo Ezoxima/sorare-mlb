@@ -142,16 +142,38 @@ def fetch_games(fixture_slug: str, gw_type: str, headers: dict) -> list[dict]:
 
 # ── Flatten ────────────────────────────────────────────────────────────────────
 
-def flatten(raw_games: list, gw_int: int, fixture_slug: str) -> tuple[list, list]:
+_INT_MAX = 2_147_483_647
+_INT_MIN = -2_147_483_648
+
+
+def _safe_int(val, label: str = "") -> int | None:
+    """Retourne val casté en int Python, ou None si hors bornes INTEGER PostgreSQL."""
+    if val is None:
+        return None
+    try:
+        v = int(val)
+    except (TypeError, ValueError):
+        return None
+    if not (_INT_MIN <= v <= _INT_MAX):
+        print(f"  [WARN] {label}={v!r} hors limites INTEGER → ignoré")
+        return None
+    return v
+
+
+def flatten(raw_games: list, gw_int: int, fixture_slug: str,
+            include_unscored: bool = False) -> tuple[list, list]:
     """
     Retourne (game_rows, inning_rows).
-    Ignore les matchs non encore joués (scored=False).
+    Par défaut ignore les matchs non encore joués (scored=False).
+    include_unscored=True : inclut tous les matchs (date, équipes, probable pitchers).
     """
     game_rows   = []
     inning_rows = []
 
     for g in raw_games:
-        if not g or not g.get("scored"):
+        if not g:
+            continue
+        if not g.get("scored") and not include_unscored:
             continue
 
         game_id = g["id"].split(":")[-1]
@@ -163,30 +185,33 @@ def flatten(raw_games: list, gw_int: int, fixture_slug: str) -> tuple[list, list
             "fixture_slug":          fixture_slug,
             "home_team_slug":        _slug(g.get("homeTeam")),
             "away_team_slug":        _slug(g.get("awayTeam")),
-            "home_score":            g.get("homeScore"),
-            "away_score":            g.get("awayScore"),
-            "home_hits":             g.get("homeHits"),
-            "away_hits":             g.get("awayHits"),
-            "home_errors":           g.get("homeErrors"),
-            "away_errors":           g.get("awayErrors"),
+            "home_score":            _safe_int(g.get("homeScore"),  f"game {game_id} home_score"),
+            "away_score":            _safe_int(g.get("awayScore"),  f"game {game_id} away_score"),
+            "home_hits":             _safe_int(g.get("homeHits"),   f"game {game_id} home_hits"),
+            "away_hits":             _safe_int(g.get("awayHits"),   f"game {game_id} away_hits"),
+            "home_errors":           _safe_int(g.get("homeErrors"), f"game {game_id} home_errors"),
+            "away_errors":           _safe_int(g.get("awayErrors"), f"game {game_id} away_errors"),
             "home_probable_pitcher": _slug(g.get("homeProbablePitcher")),
             "away_probable_pitcher": _slug(g.get("awayProbablePitcher")),
             "winning_pitcher":       _slug(g.get("winningPitcher")),
             "losing_pitcher":        _slug(g.get("losingPitcher")),
             "winner_slug":           _slug(g.get("winner")),
             "competition_slug":      _slug(g.get("competition")),
-            "inning":                (g.get("inning") or {}).get("number"),
+            "inning":                _safe_int((g.get("inning") or {}).get("number"), f"game {game_id} inning"),
             "scored":                g.get("scored"),
             "status":                g.get("statusTyped"),
             "venue":                 g.get("venue"),
         })
 
         for inn in g.get("scoresByInning") or []:
+            period = _safe_int(inn["periodNumber"], f"game {game_id} periodNumber")
+            if period is None:
+                continue  # ne pas insérer une manche avec PK NULL
             inning_rows.append({
-                "game_id":      game_id,
-                "inning_number": inn["periodNumber"],
-                "home_score":   inn["homeScore"],
-                "away_score":   inn["awayScore"],
+                "game_id":       game_id,
+                "inning_number": period,
+                "home_score":    _safe_int(inn["homeScore"], f"game {game_id} inn{period} home"),
+                "away_score":    _safe_int(inn["awayScore"], f"game {game_id} inn{period} away"),
             })
 
     return game_rows, inning_rows
@@ -196,7 +221,7 @@ def flatten(raw_games: list, gw_int: int, fixture_slug: str) -> tuple[list, list
 
 def store(engine, game_rows: list, inning_rows: list, gw_int: int) -> None:
     if not game_rows:
-        print("  Aucun match terminé à enregistrer.")
+        print("  Aucun match à enregistrer.")
         return
 
     with engine.begin() as conn:

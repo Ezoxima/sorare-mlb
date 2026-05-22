@@ -13,58 +13,312 @@ from dotenv import load_dotenv
 
 st.set_page_config(layout="wide", page_title="Sorare MLB", page_icon="⚾")
 
-# ── CSS ────────────────────────────────────────────────────────────────────────
+# ── CSS — Terminal Design System ─────────────────────────────────────────────
 
 st.markdown("""
 <style>
-@media (max-width: 768px) {
-    .block-container {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-        padding-top: 1.5rem !important;
-    }
-    div[data-testid="stModal"] > div > div {
-        width: 100vw !important; max-width: 100vw !important;
-        min-width: 100vw !important; margin: 0 !important;
-        border-radius: 0 !important;
-    }
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-0:#07090c; --bg-1:#0c1014; --bg-2:#11161d; --bg-3:#161d26; --bg-4:#1b232e;
+  --line:#1f2935; --line-2:#2a3543; --line-3:#3a4654;
+  --fg-0:#e6ebf2; --fg-1:#aab4c2; --fg-2:#6b7585; --fg-3:#4a5260;
+  --pos:#4ade80; --neg:#ff5d5d; --warn:#fbbf24; --info:#5fb3ff;
+  --accent:#6ff0c8; --accent-2:#a78bfa;
+  --r-unique:#ac11ff; --r-superrare:#179eff; --r-rare:#de000b; --r-limited:#f7b100;
+  --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  --sans:'Inter',system-ui,-apple-system,sans-serif;
 }
-.player-card {
-    border: 1px solid rgba(128,128,128,0.25);
-    border-radius: 14px;
-    padding: 16px 18px;
-    margin-bottom: 12px;
-    background: rgba(255,255,255,0.03);
+
+/* ── Streamlit reset ── */
+html, body, [data-testid="stAppViewContainer"] {
+  background: var(--bg-0) !important;
+  color: var(--fg-0) !important;
+  font-family: var(--mono) !important;
+  font-size: 12px; line-height: 1.45;
 }
-.card-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-.card-rank   { font-size:1.6rem; line-height:1; }
-.card-name   { font-size:1rem; font-weight:600; line-height:1.3; }
-.card-meta   { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
-.badge {
-    font-size:0.75rem; padding:2px 8px; border-radius:20px;
-    background:rgba(128,128,128,0.2); white-space:nowrap;
+[data-testid="stHeader"] { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
+[data-testid="stSidebar"] {
+  background: var(--bg-1) !important;
+  border-right: 1px solid var(--line) !important;
 }
-.card-stats {
-    display:flex; justify-content:space-between; align-items:center;
-    margin-top:8px; flex-wrap:wrap; gap:4px;
+[data-testid="stSidebar"] > div > div { padding-top: 0 !important; }
+.block-container { padding: 0.75rem 1.25rem 3rem !important; max-width: none !important; }
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-1); }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 0; }
+
+/* ── Tabs ── */
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+  background: var(--bg-1) !important; border-bottom: 1px solid var(--line) !important; gap: 0 !important;
 }
-.stat-value { font-size:1.1rem; font-weight:700; color:#4CAF50; }
-.kickoff    { font-size:0.85rem; opacity:0.7; }
-.game-block {
-    border: 1px solid rgba(128,128,128,0.2);
-    border-radius: 12px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
-    background: rgba(255,255,255,0.02);
+[data-testid="stTabs"] button[role="tab"] {
+  font-family: var(--mono) !important; font-size: 10px !important; font-weight: 500 !important;
+  letter-spacing: 0.08em !important; text-transform: uppercase !important;
+  color: var(--fg-2) !important; border-right: 1px solid var(--line) !important;
+  border-radius: 0 !important; padding: 9px 14px !important;
+  background: transparent !important; transition: color 120ms, background 120ms !important;
 }
-.game-title { font-size:0.95rem; font-weight:600; margin-bottom:6px; }
-.game-time  { font-size:0.8rem; opacity:0.55; margin-bottom:8px; }
-.player-line { display:flex; align-items:center; gap:8px; margin:4px 0; font-size:0.85rem; }
-.today-chip {
-    display:inline-block; font-size:0.7rem; padding:1px 7px;
-    border-radius:10px; background:#22c55e22; color:#22c55e;
-    border:1px solid #22c55e44; margin-left:8px;
+[data-testid="stTabs"] button[role="tab"]:hover { color: var(--fg-0) !important; background: var(--bg-2) !important; }
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+  color: var(--fg-0) !important; background: var(--bg-2) !important;
+  border-bottom: 2px solid var(--accent) !important;
 }
+
+/* ── Radios → segmented control ── */
+[data-testid="stRadio"] > div { display: flex !important; flex-direction: row !important; gap: 0 !important; border: 1px solid var(--line-2) !important; }
+[data-testid="stRadio"] label {
+  flex: 1 !important; padding: 5px 8px !important; font-family: var(--mono) !important;
+  font-size: 10px !important; letter-spacing: 0.06em !important; text-transform: uppercase !important;
+  text-align: center !important; border-right: 1px solid var(--line-2) !important;
+  margin: 0 !important; color: var(--fg-2) !important;
+}
+[data-testid="stRadio"] label:last-child { border-right: none !important; }
+[data-testid="stRadio"] label:has(input:checked) { background: var(--bg-3) !important; color: var(--accent) !important; }
+
+/* ── Selectbox ── */
+[data-baseweb="select"] > div {
+  background: var(--bg-2) !important; border: 1px solid var(--line-2) !important;
+  border-radius: 0 !important; font-family: var(--mono) !important; font-size: 11px !important; color: var(--fg-0) !important;
+}
+[data-baseweb="select"] svg { color: var(--fg-2) !important; }
+
+/* ── Inputs ── */
+[data-testid="stTextInput"] input, [data-testid="stNumberInput"] input {
+  background: var(--bg-2) !important; border: 1px solid var(--line-2) !important;
+  border-radius: 0 !important; font-family: var(--mono) !important; font-size: 11px !important;
+  color: var(--fg-0) !important; padding: 6px 10px !important;
+}
+[data-testid="stTextInput"] input:focus, [data-testid="stNumberInput"] input:focus {
+  border-color: var(--accent) !important; box-shadow: none !important;
+}
+
+/* ── Buttons ── */
+[data-testid="stButton"] > button {
+  font-family: var(--mono) !important; font-size: 10px !important; font-weight: 500 !important;
+  letter-spacing: 0.06em !important; text-transform: uppercase !important;
+  border-radius: 0 !important; border: 1px solid var(--line-2) !important;
+  background: var(--bg-2) !important; color: var(--fg-1) !important;
+  padding: 5px 12px !important; transition: all 120ms !important;
+}
+[data-testid="stButton"] > button:hover { border-color: var(--line-3) !important; background: var(--bg-3) !important; color: var(--fg-0) !important; }
+[data-testid="stButton"] > button[kind="primary"] { background: rgba(111,240,200,0.08) !important; border-color: rgba(111,240,200,0.4) !important; color: var(--accent) !important; }
+
+/* ── Metrics ── */
+[data-testid="stMetric"] {
+  background: var(--bg-1) !important; border: 1px solid var(--line) !important;
+  border-radius: 0 !important; padding: 10px 12px !important;
+}
+[data-testid="stMetricLabel"] {
+  font-family: var(--mono) !important; font-size: 9px !important; font-weight: 500 !important;
+  text-transform: uppercase !important; letter-spacing: 0.14em !important; color: var(--fg-3) !important;
+}
+[data-testid="stMetricValue"] { font-family: var(--mono) !important; font-size: 20px !important; font-weight: 600 !important; color: var(--fg-0) !important; }
+
+/* ── DataFrames ── */
+[data-testid="stDataFrame"] { border: 1px solid var(--line) !important; border-radius: 0 !important; }
+[data-testid="stDataFrame"] thead th {
+  background: var(--bg-2) !important; color: var(--fg-3) !important;
+  font-family: var(--mono) !important; font-size: 9px !important;
+  text-transform: uppercase !important; letter-spacing: 0.14em !important; font-weight: 500 !important;
+}
+
+/* ── Expanders ── */
+[data-testid="stExpander"] { border: 1px solid var(--line) !important; border-radius: 0 !important; background: var(--bg-1) !important; }
+[data-testid="stExpander"] summary { font-family: var(--mono) !important; font-size: 10px !important; letter-spacing: 0.06em !important; color: var(--fg-1) !important; padding: 8px 12px !important; }
+
+/* ── Dividers / Captions / Alerts ── */
+hr { border-color: var(--line) !important; margin: 10px 0 !important; }
+[data-testid="stCaptionContainer"] p { font-family: var(--mono) !important; font-size: 9px !important; color: var(--fg-3) !important; letter-spacing: 0.06em !important; }
+[data-testid="stAlert"] { border-radius: 0 !important; border: 1px solid var(--line) !important; font-family: var(--mono) !important; font-size: 11px !important; }
+
+/* ═══ TERMINAL COMPONENTS ═══ */
+
+/* ── Ticker ── */
+.ticker {
+  display: flex; align-items: center;
+  background: var(--bg-1); border-bottom: 1px solid var(--line);
+  font-size: 11px; font-family: var(--mono);
+  overflow: hidden; height: 34px;
+  margin: -0.75rem -1.25rem 1rem;
+}
+.ticker__brand {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px; height: 100%; border-right: 1px solid var(--line);
+  letter-spacing: 0.08em; font-weight: 600; background: var(--bg-1); flex-shrink: 0; z-index: 2;
+}
+.ticker__brand-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 8px var(--accent);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+.ticker__feed { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
+.ticker__feed-inner {
+  display: inline-flex; align-items: center; gap: 28px;
+  white-space: nowrap; padding: 0 20px;
+  animation: scroll-feed 70s linear infinite;
+}
+.ticker__feed:hover .ticker__feed-inner { animation-play-state: paused; }
+@keyframes scroll-feed { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.ticker__item { display: inline-flex; align-items: center; gap: 5px; color: var(--fg-1); }
+.ticker__item .sym { font-weight: 600; color: var(--fg-0); font-size: 10px; }
+.ticker__item .val.pos { color: var(--pos); }
+.ticker__item .val.neg { color: var(--neg); }
+.ticker__item .val.warn { color: var(--warn); }
+.ticker__item .val.info { color: var(--info); }
+.ticker__sep { display: inline-flex; align-items: center; padding: 0 18px; color: var(--accent); font-size: 8px; opacity: 0.5; }
+.ticker__clock {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 14px; height: 100%; border-left: 1px solid var(--line);
+  color: var(--fg-2); font-size: 10px; background: var(--bg-1); flex-shrink: 0; z-index: 2;
+}
+.ticker__clock .live { display: inline-flex; align-items: center; gap: 5px; color: var(--pos); }
+.ticker__clock .live::before {
+  content: ""; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--pos); box-shadow: 0 0 6px var(--pos);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Panel ── */
+.panel { background: var(--bg-1); border: 1px solid var(--line); margin-bottom: 12px; }
+.panel__hd {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-bottom: 1px solid var(--line);
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-2);
+}
+.panel__hd .title { color: var(--fg-0); font-weight: 600; font-size: 11px; letter-spacing: 0.06em; }
+.panel__hd .pill { font-size: 9px; padding: 1px 6px; border: 1px solid var(--line-2); color: var(--fg-1); }
+.panel__hd .pill.live { color: var(--pos); border-color: rgba(74,222,128,0.4); }
+.panel__hd .pill.accent { color: var(--accent); border-color: rgba(111,240,200,0.3); }
+.panel__hd .right { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--fg-2); }
+.panel__bd { padding: 12px 14px; }
+
+/* ── Metrics ── */
+.metrics {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  border-top: 1px solid var(--line); border-left: 1px solid var(--line);
+  background: var(--bg-1); margin-bottom: 12px;
+}
+.metric { padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.metric .k { font-size: 9px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--fg-3); margin-bottom: 4px; }
+.metric .v { font-size: 20px; font-weight: 600; color: var(--fg-0); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.metric .v.pos { color: var(--pos); }
+.metric .v.neg { color: var(--neg); }
+.metric .v.warn { color: var(--warn); }
+.metric .v.accent { color: var(--accent); }
+.metric .v.info { color: var(--info); }
+.metric .big { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.metric .sub { font-size: 10px; color: var(--fg-2); margin-top: 3px; }
+
+/* ── Lineup summary (5 cells) ── */
+.lineup-summary { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; border-left: 1px solid var(--line); }
+.ls-cell { padding: 12px 14px; border-right: 1px solid var(--line); }
+.ls-cell .k { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 6px; }
+.ls-cell .v { font-size: 22px; font-weight: 600; color: var(--fg-0); font-variant-numeric: tabular-nums; }
+.ls-cell .v.pos { color: var(--pos); } .ls-cell .v.warn { color: var(--warn); } .ls-cell .v.accent { color: var(--accent); }
+.ls-cell .sub { font-size: 10px; color: var(--fg-2); margin-top: 3px; }
+.ls-cell .headline { display: flex; align-items: baseline; gap: 10px; }
+.ls-cell .headline .big { font-size: 26px; font-weight: 700; color: var(--fg-0); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+/* ── Player card (pcard) ── */
+.pcard {
+  background: var(--bg-1); border: 1px solid var(--line);
+  position: relative; cursor: pointer; display: flex; flex-direction: column;
+  transition: border-color 120ms;
+}
+.pcard:hover { border-color: var(--line-3); }
+.pcard.rank-1 { border-left: 2px solid var(--r-unique); }
+.pcard.rank-2 { border-left: 2px solid var(--accent); }
+.pcard.rank-3 { border-left: 2px solid var(--info); }
+.pcard__hd { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border-bottom: 1px solid var(--line); }
+.pcard__rank { font-size: 16px; font-weight: 700; color: var(--fg-0); min-width: 24px; }
+.pcard__rank.r1 { color: var(--r-unique); } .pcard__rank.r2 { color: var(--accent); } .pcard__rank.r3 { color: var(--info); }
+.pcard__head-info { flex: 1; line-height: 1.2; min-width: 0; }
+.pcard__name { color: var(--fg-0); font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcard__sub { color: var(--fg-2); font-size: 10px; margin-top: 2px; letter-spacing: 0.03em; }
+.pcard__rarity-dot { width: 7px; height: 7px; display: inline-block; flex-shrink: 0; }
+.pcard__art {
+  height: 90px;
+  background: repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0 6px, transparent 6px 12px),
+    var(--team-grad, linear-gradient(135deg,#1b232e,#11161d));
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.pcard__art::before { content:""; position:absolute; inset:0; background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,0.5)); }
+.pcard__monogram { font-weight: 700; font-size: 30px; color: rgba(255,255,255,0.8); letter-spacing: -0.04em; text-shadow: 0 2px 8px rgba(0,0,0,0.4); z-index: 1; }
+.pcard__art-tag { position: absolute; top: 7px; right: 7px; font-size: 8px; letter-spacing: 0.1em; padding: 1px 5px; background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.15); z-index: 1; }
+.pcard__row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--line); }
+.pcard__row .cell { padding: 7px 9px; border-right: 1px solid var(--line); }
+.pcard__row .cell:last-child { border-right: none; }
+.pcard__row .k { font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 2px; }
+.pcard__row .v { font-size: 13px; font-weight: 600; color: var(--fg-0); font-variant-numeric: tabular-nums; }
+.pcard__row .v.pos { color: var(--pos); } .pcard__row .v.dim { color: var(--fg-2); }
+.pcard__spark { height: 32px; padding: 5px 9px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; }
+.pcard__spark svg { flex: 1; }
+.pcard__meta { display: flex; align-items: center; gap: 5px; padding: 7px 9px; border-top: 1px solid var(--line); font-size: 10px; color: var(--fg-2); flex-wrap: wrap; }
+.tag { font-size: 9px; padding: 1px 5px; border: 1px solid var(--line-2); color: var(--fg-1); letter-spacing: 0.04em; }
+.tag.is { color: var(--pos); border-color: rgba(74,222,128,0.35); }
+.tag.classic { color: var(--info); border-color: rgba(95,179,255,0.35); }
+.tag.pp { color: var(--warn); border-color: rgba(251,191,36,0.35); }
+.tag.rarity-unique     { color: var(--r-unique);    border-color: rgba(172,17,255,0.35); }
+.tag.rarity-super_rare { color: var(--r-superrare); border-color: rgba(23,158,255,0.35); }
+.tag.rarity-rare       { color: var(--r-rare);      border-color: rgba(222,0,11,0.35); }
+.tag.rarity-limited    { color: var(--r-limited);   border-color: rgba(247,177,0,0.35); }
+
+/* ── Lineup 7-slot grid ── */
+.lineup-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 12px; }
+.slot { background: var(--bg-1); border: 1px solid var(--line); display: flex; flex-direction: column; }
+.slot__label { display: flex; align-items: center; justify-content: space-between; padding: 5px 9px; font-size: 9px; letter-spacing: 0.14em; color: var(--fg-2); border-bottom: 1px solid var(--line); background: var(--bg-2); text-transform: uppercase; }
+.slot__label .num { color: var(--fg-3); font-weight: 500; }
+.pred-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--line); }
+.pred-strip .cell { padding: 7px 5px; text-align: center; border-right: 1px solid var(--line); }
+.pred-strip .cell:last-child { border-right: none; }
+.pred-strip .k { font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 2px; }
+.pred-strip .v { font-size: 13px; font-weight: 600; color: var(--fg-0); font-variant-numeric: tabular-nums; }
+.pred-strip .v.pos { color: var(--pos); } .pred-strip .v.neg { color: var(--neg); } .pred-strip .v.dim { color: var(--fg-3); }
+
+/* ── Position pills ── */
+.pos-pill { display: inline-block; padding: 2px 5px; font-size: 10px; letter-spacing: 0.04em; background: var(--bg-3); border: 1px solid var(--line-2); color: var(--fg-0); min-width: 28px; text-align: center; }
+.pos-pill.sp, .pos-pill.rp { color: var(--info); border-color: rgba(95,179,255,0.35); }
+.pos-pill.ci, .pos-pill.mi { color: var(--accent); border-color: rgba(111,240,200,0.35); }
+.pos-pill.of { color: var(--warn); border-color: rgba(251,191,36,0.35); }
+.pos-pill.flex { color: var(--accent-2); border-color: rgba(167,139,250,0.4); }
+
+/* ── Manager row (sidebar) ── */
+.manager-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+.manager-avatar { width: 28px; height: 28px; flex-shrink: 0; background: linear-gradient(135deg,var(--accent),var(--accent-2)); color: var(--bg-0); font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+.manager-info { line-height: 1.2; min-width: 0; }
+.manager-info .name { color: var(--fg-0); font-weight: 600; font-size: 12px; }
+.manager-info .sub  { color: var(--fg-2); font-size: 10px; }
+
+/* ── Statusbar ── */
+.statusbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; display: flex; align-items: center; background: var(--bg-1); border-top: 1px solid var(--line); font-size: 10px; font-family: var(--mono); height: 24px; }
+.statusbar__cell { padding: 0 12px; height: 100%; display: flex; align-items: center; gap: 5px; border-right: 1px solid var(--line); }
+.statusbar__cell:last-child { border-right: none; }
+.statusbar__cell .k { color: var(--fg-3); }
+.statusbar__cell .v { color: var(--fg-1); }
+.statusbar__spacer { flex: 1; }
+
+/* ── Dots ── */
+.dot { width: 5px; height: 5px; border-radius: 50%; background: var(--fg-3); display: inline-block; }
+.dot.live { background: var(--pos); box-shadow: 0 0 5px var(--pos); animation: pulse 1.5s ease-in-out infinite; }
+.dot.warn { background: var(--warn); }
+
+/* ── Toolbar ── */
+.toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg-2); border: 1px solid var(--line); border-bottom: none; font-size: 10px; }
+.toolbar__sep { width: 1px; height: 14px; background: var(--line-2); }
+.toolbar .lbl { color: var(--fg-3); font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; }
+
+/* ── Misc ── */
+.divider-h { height: 1px; background: var(--line); margin: 12px 0; }
+.empty-state { padding: 40px 20px; text-align: center; color: var(--fg-2); font-size: 11px; }
+.spark-line { stroke: var(--accent); stroke-width: 1.2; fill: none; }
+.spark-fill { fill: var(--accent); opacity: 0.1; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -94,10 +348,10 @@ POSITION_AGG = {
 }
 RARITY_ORDER = {"unique": 0, "super_rare": 1, "rare": 2, "limited": 3}
 RARITY_COLOR = {
-    "unique":     "#ffd700",
-    "super_rare": "#ff4444",
-    "rare":       "#4488ff",
-    "limited":    "#cc88ff",
+    "unique":     "#ac11ff",
+    "super_rare": "#179eff",
+    "rare":       "#de000b",
+    "limited":    "#f7b100",
 }
 FENETRE_OPTIONS = {"5 matchs": 5, "10 matchs": 10, "20 matchs": 20}
 PARIS_TZ = ZoneInfo("Europe/Paris")
@@ -108,7 +362,7 @@ MOIS_FR = ["", "jan", "fév", "mar", "avr", "mai", "jun",
 
 # ── Data ───────────────────────────────────────────────────────────────────────
 
-_DATA_DIR      = Path(__file__).parent / "data"
+_DATA_DIR      = Path(__file__).parent.parent / "data"
 _LINEUPS_FILE  = _DATA_DIR / "saved_lineups.json"
 
 
@@ -512,6 +766,108 @@ def compact_multiselect(label: str, options: list, key: str) -> list:
 
 # ── Composants UI ──────────────────────────────────────────────────────────────
 
+def gen_sparkline_svg(values, w=160, h=24, color="var(--accent)") -> str:
+    if not values:
+        return ""
+    mn, mx = min(values), max(values)
+    span = max(0.001, mx - mn)
+    pts = [(i / max(1, len(values) - 1) * w, h - ((v - mn) / span) * (h - 2) - 1) for i, v in enumerate(values)]
+    path = " ".join(f"{'M' if i == 0 else 'L'}{x:.1f},{y:.1f}" for i, (x, y) in enumerate(pts))
+    fill = f"{path} L{pts[-1][0]:.1f},{h} L{pts[0][0]:.1f},{h} Z"
+    return (
+        f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" preserveAspectRatio="none">'
+        f'<path d="{fill}" fill="{color}" opacity="0.1"/>'
+        f'<path d="{path}" fill="none" stroke="{color}" stroke-width="1.2"/>'
+        f"</svg>"
+    )
+
+
+@st.cache_data(ttl=3600)
+def load_today_games(today_date: str) -> pd.DataFrame:
+    games = pd.read_parquet(_DATA_DIR / "games.parquet")
+    games["game_date"] = pd.to_datetime(games["game_date"], utc=True, errors="coerce")
+    today = pd.Timestamp(today_date).date()
+    g = games[games["game_date"].dt.date == today].copy()
+    g = g.sort_values("game_date").reset_index(drop=True)
+    return g
+
+
+@st.cache_data(ttl=86400)
+def load_team_codes() -> dict:
+    p = _DATA_DIR / "teams.parquet"
+    if not p.exists():
+        return {}
+    df = pd.read_parquet(p, columns=["team_slug", "team_code"])
+    return dict(zip(df["team_slug"], df["team_code"].fillna("")))
+
+
+def _team_abbr(slug: str, codes: dict) -> str:
+    code = codes.get(slug, "")
+    if code:
+        return code
+    words = (slug or "").replace("-", " ").split()
+    if len(words) == 1:
+        return words[0][:3].upper()
+    return "".join(w[0] for w in words[:3]).upper()
+
+
+def render_ticker(df_all, sel_manager, today_paris) -> None:
+    df_games = load_today_games(str(today_paris))
+    team_codes = load_team_codes()
+    if df_games.empty:
+        game_items = '<span class="ticker__item"><span class="sym">MLB</span><span class="val info">Aucun match aujourd\'hui</span></span>'
+    else:
+        parts = []
+        for _, g in df_games.iterrows():
+            home = _team_abbr(g.get("home_team_slug", ""), team_codes)
+            away = _team_abbr(g.get("away_team_slug", ""), team_codes)
+            t = g["game_date"].astimezone(PARIS_TZ).strftime("%H:%M")
+            parts.append(
+                f'<span class="ticker__item">'
+                f'<span class="sym">{home}</span>'
+                f'<span style="color:var(--fg-3);font-size:10px">vs</span>'
+                f'<span class="sym">{away}</span>'
+                f'<span class="val info">{t}</span>'
+                f'</span>'
+            )
+        sep = '<span class="ticker__sep">&#9670;</span>'
+        if len(parts) >= 2:
+            times = df_games["game_date"].tolist()
+            n = len(times)
+            gaps = [
+                (times[i + 1] - times[i]).total_seconds() if i + 1 < n
+                else (times[0] + pd.Timedelta(days=1) - times[i]).total_seconds()
+                for i in range(n)
+            ]
+            start = (gaps.index(max(gaps)) + 1) % n
+            parts = parts[start:] + parts[:start]
+            game_items = "".join(parts) + sep
+        else:
+            game_items = "".join(parts)
+
+    st.markdown(
+        f'<div class="ticker">'
+        f'<div class="ticker__brand"><span class="ticker__brand-dot"></span>SORARE·MLB</div>'
+        f'<div class="ticker__feed"><div class="ticker__feed-inner">{game_items}{game_items}</div></div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_statusbar(last_upd: str, filters_summary: str) -> None:
+    st.markdown(
+        f'<div class="statusbar">'
+        f'<span class="statusbar__cell"><span class="dot live"></span><span class="k">CONN</span><span class="v">api.sorare.com</span></span>'
+        f'<span class="statusbar__cell"><span class="k">CACHE</span><span class="v">ttl 3600s</span></span>'
+        f'<span class="statusbar__cell"><span class="k">FILTERS</span><span class="v">{filters_summary}</span></span>'
+        f'<span class="statusbar__spacer"></span>'
+        f'<span class="statusbar__cell"><span class="k">LAST.UPD</span><span class="v">{last_upd}</span></span>'
+        f'<span class="statusbar__cell"><span class="k">v</span><span class="v">2.4.0-mlb</span></span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def _matchup(row) -> str:
     if pd.isna(row["next_game_date"]):
         return "—"
@@ -539,44 +895,50 @@ def _fmt_date_header(dt: datetime) -> str:
     return label
 
 
+def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | None = None) -> str:
+    rar_raw  = (row["card_display_rarity"] or "").lower()
+    rar_css  = {"limited": "r-limited", "rare": "r-rare", "super_rare": "r-superrare", "unique": "r-unique"}.get(rar_raw, "")
+    rank_css = ["r1", "r2", "r3"][rank] if rank < 3 else ""
+    card_cls = f"pcard rank-{rank + 1}" if rank < 3 else "pcard"
+    rank_lbl = ["#1", "#2", "#3"][rank] if rank < 3 else f"#{rank + 1}"
+    pos      = row.get("position_agg") or row.get("position_exact") or "?"
+    matchup  = row.get("matchup", "—")
+    coup     = row.get("coup_envoi", "—")
+    rar_lbl  = (row["card_display_rarity"] or "").upper()
+    is_elig  = row.get("in_season_eligible")
+    is_tag   = '<span class="tag is">IS</span>' if is_elig is True else ('<span class="tag classic">OOS</span>' if is_elig is False else "")
+    pp_tag   = '<span class="tag pp">PP</span>' if row.get("is_pp") else ""
+    rar_tag  = f'<span class="tag rarity-{rar_raw}">{rar_lbl}</span>' if rar_lbl else ""
+    monogram = row["player_name"].split()[-1][:3].upper()
+    pred     = row.get("pred_median")
+    pred_str = f"{pred:.1f}" if pred and not pd.isna(pred) else "—"
+    spark_svg = gen_sparkline_svg(spark_values) if spark_values else ""
+    return (
+        f'<div class="{card_cls}">'
+        f'<div class="pcard__hd">'
+        f'<span class="pcard__rank {rank_css}">{rank_lbl}</span>'
+        f'<div class="pcard__head-info">'
+        f'<div class="pcard__name">{row["player_name"]}</div>'
+        f'<div class="pcard__sub">{pos} · {matchup}</div>'
+        f'</div>'
+        f'<span class="pcard__rarity-dot" style="background:var(--{rar_css},#888)"></span>'
+        f'</div>'
+        f'<div class="pcard__art"><div class="pcard__monogram">{monogram}</div>'
+        f'<span class="pcard__art-tag">{rar_lbl}</span></div>'
+        f'<div class="pcard__row">'
+        f'<div class="cell"><div class="k">{stat_label}</div><div class="v pos">{row["moyenne"]:.2f}</div></div>'
+        f'<div class="cell"><div class="k">ML Pred</div><div class="v">{pred_str}</div></div>'
+        f'<div class="cell"><div class="k">Matchs</div><div class="v dim">{int(row["nb_matchs"])}</div></div>'
+        f'</div>'
+        + (f'<div class="pcard__spark">{spark_svg}</div>' if spark_svg else "")
+        + f'<div class="pcard__meta">{rar_tag}{is_tag}{pp_tag}'
+        f'<span style="margin-left:auto;font-size:9px;color:var(--fg-3)">{coup}</span></div>'
+        f"</div>"
+    )
+
+
 def render_player_card(rank: int, row, stat_label: str) -> str:
-    medals = ["🥇", "🥈", "🥉"]
-    medal  = medals[rank] if rank < 3 else f"#{rank + 1}"
-    color  = RARITY_COLOR.get(row["card_display_rarity"].lower() if row["card_display_rarity"] else "", "#888")
-    pos    = row["position_agg"] or row["position_exact"] or "?"
-    matchup    = row["matchup"]
-    game_date  = row["coup_envoi"]
-    match_line = f"⏰ {game_date} UTC · {matchup}" if matchup != "—" else "Pas de match programmé"
-    is_eligible = row.get("in_season_eligible")
-    if is_eligible is True:
-        is_badge = '<span class="badge" style="color:#22c55e;border:1px solid #22c55e44">IS</span>'
-    elif is_eligible is False:
-        is_badge = '<span class="badge" style="color:#94a3b8;border:1px solid #94a3b844">Classic</span>'
-    else:
-        is_badge = ""
-    pp_badge = '<span class="badge" style="color:#f59e0b;border:1px solid #f59e0b44">PP</span>' if row.get("is_pp") else ""
-    extra_badges = is_badge + pp_badge
-    return f"""
-    <div class="player-card" style="border-color:{color}55;">
-        <div class="card-header">
-            <div class="card-rank">{medal}</div>
-            <div class="card-name">{row['player_name']}</div>
-        </div>
-        <div class="card-meta">
-            <span class="badge" style="color:{color};border:1px solid {color}44;">{pos}</span>
-            <span class="badge">{row['card_display_rarity']}</span>
-            {extra_badges}
-            <span class="badge">{row['gallery_manager']}</span>
-        </div>
-        <div style="font-size:0.78rem;opacity:0.55;margin-bottom:8px;">{match_line}</div>
-        <div class="card-stats">
-            <div class="stat-value">
-                {row['moyenne']:.3f}
-                <small style="font-size:0.7rem;font-weight:400;opacity:0.7">{stat_label}</small>
-            </div>
-            <div class="kickoff">📊 {int(row['nb_matchs'])} matchs</div>
-        </div>
-    </div>"""
+    return render_terminal_card(rank, row, stat_label)
 
 
 # ── Graphique historique ───────────────────────────────────────────────────────
@@ -682,24 +1044,25 @@ def show_player_chart(player_slug: str, player_name: str, stat: str, stat_label:
 
     fig.update_layout(
         barmode="overlay",
+        paper_bgcolor="#0c1014",
+        plot_bgcolor="#0c1014",
+        font=dict(family="JetBrains Mono, monospace", color="#aab4c2", size=10),
         xaxis=dict(
-            tickfont=dict(size=max(10, 15 - max(0, n_bars - 12)),
-                          color="rgba(255,255,255,0.55)"),
+            tickfont=dict(size=max(9, 13 - max(0, n_bars - 12)), color="#6b7585", family="JetBrains Mono"),
             tickangle=-45 if n_bars > 12 else 0,
             showgrid=False, zeroline=False, showline=False,
+            gridcolor="#1f2935",
         ),
         yaxis=dict(
-            tickformat=".2g", gridcolor="rgba(255,255,255,0.06)",
+            tickformat=".2g", gridcolor="#1f2935",
             zeroline=False, showline=False,
-            tickfont=dict(size=11, color="rgba(255,255,255,0.35)"),
+            tickfont=dict(size=10, color="#4a5260", family="JetBrains Mono"),
             range=[-ymax * 0.16, ymax],
         ),
         showlegend=False,
-        margin=dict(t=15, b=50, l=40, r=15),
-        plot_bgcolor="rgba(0,0,0,0)",
-        paper_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=12, b=48, l=36, r=12),
         bargap=0.28,
-        height=max(420, 600 - max(0, n_bars - 10) * 8),
+        height=max(380, 560 - max(0, n_bars - 10) * 8),
     )
     st.plotly_chart(fig, use_container_width=True)
     n_played = sum(1 for d in is_dnp if not d)
@@ -752,17 +1115,39 @@ today_paris = now_paris.date()
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.title("⚾ Sorare MLB")
+    # ── Brand header ──────────────────────────────────────────────────────────
+    st.markdown(
+        '<div style="padding:10px 12px;border-bottom:1px solid var(--line);'
+        'background:var(--bg-1);font-family:var(--mono);margin:-1rem -1rem 0">'
+        '<div style="font-size:11px;font-weight:700;letter-spacing:0.14em;'
+        'text-transform:uppercase;color:var(--fg-0)">SORARE·MLB</div>'
+        '<div style="font-size:9px;color:var(--fg-3);letter-spacing:0.12em;margin-top:1px">TERMINAL v2.4</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
     managers = sorted(df_all["gallery_manager"].dropna().unique())
     if len(managers) > 1:
         sel_manager = st.selectbox("Manager", managers)
+        initials = "".join(p[0].upper() for p in sel_manager.split()[:2])
     else:
         sel_manager = managers[0] if managers else None
-        st.caption(f"👤 {sel_manager}")
+        initials = "".join(p[0].upper() for p in (sel_manager or "??").split()[:2])
 
-    st.divider()
-    st.caption("Filtres galerie")
+    ncards_mgr = len(df_all[df_all["gallery_manager"] == sel_manager]) if sel_manager else 0
+    st.markdown(
+        f'<div class="manager-row">'
+        f'<div class="manager-avatar">{initials}</div>'
+        f'<div class="manager-info">'
+        f'<div class="name">{sel_manager or "—"}</div>'
+        f'<div class="sub">{ncards_mgr} cartes</div>'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;'
+                'color:var(--fg-3);padding:6px 0 4px">Filtres galerie</div>', unsafe_allow_html=True)
 
     categorie = st.radio("Catégorie", ["HITTING", "PITCHING"], horizontal=True)
 
@@ -810,6 +1195,11 @@ with st.sidebar:
         _avail_days[_day_labels.index(_sel_day_label) - 1]
         if _sel_day_label != "Tous les jours" else None
     )
+
+    st.divider()
+    if st.button("⟳ Rafraîchir", use_container_width=True, key="sidebar_rerun"):
+        st.cache_data.clear()
+        st.rerun()
 
 # ── Filtrage galerie ────────────────────────────────────────────────────────────
 
@@ -896,6 +1286,9 @@ else:
     df_today["pred_lo"]     = float("nan")
     df_today["pred_hi"]     = float("nan")
 
+# ── Ticker ──────────────────────────────────────────────────────────────────────
+render_ticker(df_all, sel_manager, today_paris)
+
 # ── Tabs ────────────────────────────────────────────────────────────────────────
 
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
@@ -940,16 +1333,36 @@ with tab1:
     if _tab1_poste != "Tous":
         df_view = df_view[df_view["position_agg"] == _tab1_poste]
 
-    col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1:
-        st.markdown(
-            f"<div style='font-size:0.875rem;color:rgba(49,51,63,.6);margin-bottom:4px'>Stat</div>"
-            f"<div style='font-size:2rem;font-weight:700;line-height:1.2'>{sel_stat_label}"
-            f"<span style='font-size:1.2rem;font-weight:400'> — {sel_stat.replace('_', ' ').title()}</span></div>",
-            unsafe_allow_html=True
-        )
-    col_m2.metric("Fenêtre", fenetre)
-    col_m3.metric("Joueurs ce jour", len(df_view))
+    _pred_avg = df_view["pred_median"].mean() if "pred_median" in df_view.columns and df_view["pred_median"].notna().any() else None
+    _pred_std = df_view["pred_median"].std()  if _pred_avg is not None else None
+    _pred_max_row = df_view.loc[df_view["pred_median"].idxmax()] if _pred_avg is not None and len(df_view) > 0 else None
+    _n_is   = int((df_view["in_season_eligible"] == True).sum())
+    _n_pp   = int(df_view.get("is_pp", pd.Series(dtype=bool)).sum()) if "is_pp" in df_view.columns else 0
+    _pred_avg_str = f"{_pred_avg:.1f}" if _pred_avg is not None and not pd.isna(_pred_avg) else "—"
+    _pred_std_str = f"±{_pred_std:.1f}" if _pred_std is not None and not pd.isna(_pred_std) else ""
+    _pred_max_str = (_pred_max_row["player_name"].split()[-1] if _pred_max_row is not None else "—")
+    st.markdown(
+        f'<div class="panel"><div class="panel__hd">'
+        f'<span class="title">Défis journaliers</span>'
+        f'<span class="pill live">LIVE</span>'
+        f'<span class="pill accent">{_tab1_day_label}</span>'
+        f'<span class="right">{fenetre} · {categorie}</span>'
+        f'</div>'
+        f'<div class="lineup-summary">'
+        f'<div class="ls-cell"><div class="k">Statistique</div>'
+        f'<div class="headline"><div class="big" style="color:var(--r-limited)">{sel_stat_label}</div></div>'
+        f'<div class="sub">{fenetre} · {categorie}</div></div>'
+        f'<div class="ls-cell"><div class="k">Joueurs ce jour</div>'
+        f'<div class="v">{len(df_view)}</div><div class="sub">de {len(df)} en galerie</div></div>'
+        f'<div class="ls-cell"><div class="k">Pred. moyenne</div>'
+        f'<div class="v pos">{_pred_avg_str}</div><div class="sub">σ {_pred_std_str}</div></div>'
+        f'<div class="ls-cell"><div class="k">Pred. max</div>'
+        f'<div class="v">{_pred_max_str}</div></div>'
+        f'<div class="ls-cell"><div class="k">IS / PP</div>'
+        f'<div class="v accent">{_n_is}</div><div class="sub">{_n_pp} probable pitchers</div></div>'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
 
     if df_view.empty:
         if sel_day is not None:
@@ -957,19 +1370,32 @@ with tab1:
         else:
             st.info("Aucun joueur de ta galerie ne correspond aux filtres sélectionnés.")
     else:
-        st.subheader("🥇 Suggestion d'alignement")
+        st.markdown(
+            f'<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none;margin-top:8px">'
+            f'<span class="title">Suggestion d\'alignement</span>'
+            f'<span class="pill">TOP 3</span>'
+            f'<span class="right" style="color:var(--fg-3);font-size:9px">tri par {sel_stat_label}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
         top3      = df_view.head(3)
         top3_cols = st.columns(len(top3))
         for i, ((_, row), col) in enumerate(zip(top3.iterrows(), top3_cols)):
             with col:
-                st.markdown(render_player_card(i, row, sel_stat_label), unsafe_allow_html=True)
-                if st.button("📊 Historique", key=f"hist_top_{i}", use_container_width=True):
+                st.markdown(render_terminal_card(i, row, sel_stat_label), unsafe_allow_html=True)
+                if st.button("Historique", key=f"hist_top_{i}", use_container_width=True):
                     show_player_chart(row["player_slug"], row["player_name"],
                                       sel_stat, sel_stat_label, target)
 
-        st.divider()
-        st.subheader(f"📊 Classement du jour — {len(df_view)} joueur(s)")
-        st.caption("Clique sur une ligne pour voir l'historique du joueur.")
+        st.markdown('<div class="divider-h"></div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none">'
+            f'<span class="title">Classement du jour</span>'
+            f'<span class="pill">{len(df_view)} joueurs</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        st.caption("Clic sur une ligne → historique joueur")
 
         df_view["_is_lbl"] = df_view["in_season_eligible"].map(
             lambda v: "IS" if v is True else ("Classic" if v is False else "—")
@@ -1020,11 +1446,15 @@ with tab2:
         val_oos = df_p["price_out_season"].sum()
         n_priced = df_p["price_in_season"].notna().sum()
 
-        col_p1, col_p2, col_p3, col_p4 = st.columns(4)
-        col_p1.metric("Cartes", len(df_p))
-        col_p2.metric("Avec prix", int(n_priced))
-        col_p3.metric("Valeur IS (EUR)", f"{val_is:.0f} €" if val_is > 0 else "—")
-        col_p4.metric("Valeur Classic (EUR)", f"{val_oos:.0f} €" if val_oos > 0 else "—")
+        st.markdown(
+            f'<div class="metrics">'
+            f'<div class="metric"><div class="k">Cartes</div><div class="v">{len(df_p)}</div></div>'
+            f'<div class="metric"><div class="k">Avec prix</div><div class="v">{int(n_priced)}</div></div>'
+            f'<div class="metric"><div class="k">Valeur IS</div><div class="v pos">{val_is:.0f} €</div></div>'
+            f'<div class="metric"><div class="k">Valeur Classic</div><div class="v" style="color:var(--fg-2)">{val_oos:.0f} €</div></div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
         st.divider()
 
@@ -1125,8 +1555,14 @@ with tab3:
         .reset_index(drop=True)
     )
 
-    st.subheader(f"Top {int(top_n)} — {sel_stat_label} ({fenetre})")
-    st.caption(f"{len(df_db_f)} joueurs affichés sur {len(df_db)} avec données.")
+    st.markdown(
+        f'<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none">'
+        f'<span class="title">Top {int(top_n)} — {sel_stat_label}</span>'
+        f'<span class="pill">{fenetre}</span>'
+        f'<span class="right" style="color:var(--fg-3);font-size:9px">{len(df_db_f)} / {len(df_db)} joueurs</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
     if df_db_f.empty:
         st.info("Aucun joueur ne correspond aux filtres.")
@@ -1172,7 +1608,13 @@ with tab4:
     if df_vv.empty:
         st.info("Aucun match programmé pour le prochain fixture CLASSIC.")
     else:
-        st.subheader(f"GW{vv_gw} — Vis-à-vis")
+        st.markdown(
+            f'<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none">'
+            f'<span class="title">GW{vv_gw} — Vis-à-vis</span>'
+            f'<span class="pill accent">CLASSIC</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
         # Galerie hitters (sans SP/RP)
         gal_hitters = (
@@ -1276,7 +1718,11 @@ with tab4:
             mu_idx, pit_idx = {}, {}
 
         # --- TABLE HITTERS ---
-        st.markdown("### Hitters")
+        st.markdown(
+            '<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none">'
+            '<span class="title">Hitters</span><span class="pill">vs SP probable</span></div>',
+            unsafe_allow_html=True,
+        )
         hit_rows = []
         for m in matchup_list:
             hist = mu_idx.get((m["hitter_slug"], m["pitcher_slug"]), {})
@@ -1305,7 +1751,12 @@ with tab4:
         st.divider()
 
         # --- TABLE PITCHERS ---
-        st.markdown("### Pitchers")
+        st.markdown('<div class="divider-h"></div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none">'
+            '<span class="title">Pitchers</span></div>',
+            unsafe_allow_html=True,
+        )
         seen_pitchers: dict[str, str] = {}
         for m in matchup_list:
             seen_pitchers.setdefault(m["pitcher_slug"], m["pitcher_name"])
@@ -1564,8 +2015,13 @@ with tab5:
                 df7 = pd.concat([df7, pd.DataFrame(_extra7)], ignore_index=True)
 
         # ── Filtres + tri ─────────────────────────────────────────────────────
-        st.subheader(f"GW{gw7} — Projections de score")
-        st.divider()
+        st.markdown(
+            f'<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none">'
+            f'<span class="title">GW{gw7} — Projections</span>'
+            f'<span class="pill accent">ML + CTX</span>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
         col7f1, col7f2, col7f3 = st.columns([2, 3, 4])
         with col7f1:
@@ -4327,3 +4783,8 @@ if False:
                                 if _nxt:
                                     st.session_state["bv_active"] = _nxt
                             st.rerun()
+
+# ── Statusbar (fixée en bas) ──────────────────────────────────────────────────
+_last_upd = now_paris.strftime("%d %b %Y — %H:%M")
+_filters_summary = f"{categorie} · {sel_stat_label} · {fenetre}"
+render_statusbar(_last_upd, _filters_summary)

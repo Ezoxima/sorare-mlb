@@ -3,14 +3,16 @@ update_data.py
 --------------
 Mise à jour incrémentale de toutes les données MLB.
 
-  [1/8] Players & équipes → full refresh mlb.players + mlb.teams (lent : 1 appel/joueur)
-  [2/8] Galerie           → full refresh (prix, prochain match, etc. changent)
-  [3/8] Game infos        → uniquement les GW absentes de mlb.games
-  [4/8] Game scores/GW    → uniquement les GW absentes de mlb.game_scores
-  [5/8] Nouveaux joueurs  → historique complet pour les joueurs galerie sans données
-  [6/8] Précalcul stats   → mlb.gallery_stats_agg (5/10/20 matchs, passe unique)
-  [7/8] Prix cartes       → full refresh (prix volatils)
-  [8/8] Export parquet    → fichiers data/*.parquet pour Streamlit
+  [1/10] Players & équipes → full refresh mlb.players + mlb.teams (lent : 1 appel/joueur)
+  [2/10] Galerie           → full refresh (prix, prochain match, etc. changent)
+  [3/10] Game infos        → uniquement les GW absentes de mlb.games
+  [4/10] Météo             → upsert mlb.game_weather (Open-Meteo, 7j passés + 16j futurs)
+  [5/10] Game scores/GW    → uniquement les GW absentes de mlb.game_scores
+  [6/10] Nouveaux joueurs  → historique complet pour les joueurs galerie sans données
+  [7/10] Précalcul stats   → mlb.gallery_stats_agg (5/10/20 matchs, passe unique)
+  [8/10] Prix cartes       → full refresh (prix volatils)
+  [9/10] Prix d'achat      → historique trades via API Sorare (crédits limités)
+  [10/10] Export parquet   → fichiers data/*.parquet pour Streamlit
 
 Usage :
     python update_data.py
@@ -33,8 +35,10 @@ from fetch_game_infos import fetch_games, flatten as _flatten_games, store as _s
 from fetch_gw_scores  import fetch_game_scores as _fetch_game_scores, \
                              flatten_to_rows as _flatten_gw_scores, \
                              store as _store_gw_scores
-from fetch_scores     import fetch_scores_for_player, store_scores, get_gallery_slugs
+from fetch_scores     import fetch_scores_for_player, store_scores
 from fetch_prices     import fetch_prices_for_player, store_prices, _load_fx_rates
+from fetch_card_trades import fetch_trades, store_trades
+from fetch_weather    import run as _weather_run
 from init_ref_data    import fetch_teams, store_teams, fetch_and_store_players
 
 SORARE_API = "https://api.sorare.com/graphql"
@@ -76,6 +80,14 @@ def _load_config():
         m.strip() for m in os.getenv("SORARE_MANAGERS_MLB", "").split(",") if m.strip()
     ]
     return engine, api_headers, manager_list
+
+
+def get_gallery_slugs(engine) -> list[str]:
+    with engine.connect() as conn:
+        rows = conn.execute(text(
+            "SELECT DISTINCT player_slug FROM mlb.gallery_players WHERE NOT sealed"
+        )).fetchall()
+    return [r[0] for r in rows]
 
 
 # ── Helpers communs ────────────────────────────────────────────────────────────
@@ -442,6 +454,18 @@ def update_prices(engine, headers: dict, include_gw_players: bool = False) -> No
     store_prices(engine, all_rows)
 
 
+# ── 6. Prix d'achat (card trades) ─────────────────────────────────────────────
+
+def update_card_trades(engine, manager_list: list, headers: dict) -> None:
+    if not manager_list:
+        print("  Aucun manager configuré.")
+        return
+    for slug in manager_list:
+        print(f"  -> {slug}")
+        rows = fetch_trades(slug, headers)
+        store_trades(engine, rows, slug)
+
+
 # ── 7. Export parquet ──────────────────────────────────────────────────────────
 
 def export_to_parquet(engine) -> None:
@@ -530,7 +554,7 @@ def export_to_parquet(engine) -> None:
         slugs = _df(conn, "SELECT DISTINCT player_slug FROM mlb.gallery_players WHERE NOT sealed")["player_slug"].tolist()
 
         _df(conn, """
-            SELECT player_slug, game_date, gw_int, score, played_in_game, position
+            SELECT player_slug, game_date, gw_int, category, score, played_in_game
             FROM mlb.game_scores
             WHERE player_slug = ANY(:slugs)
             ORDER BY player_slug, game_date DESC
@@ -566,6 +590,10 @@ def export_to_parquet(engine) -> None:
         """).to_parquet(data_dir / "players.parquet", index=False)
         print("  players.parquet")
 
+        _df(conn, "SELECT team_slug, team_code FROM mlb.teams WHERE team_code IS NOT NULL"
+        ).to_parquet(data_dir / "teams.parquet", index=False)
+        print("  teams.parquet")
+
     print("  Export terminé.")
 
 
@@ -574,50 +602,84 @@ def export_to_parquet(engine) -> None:
 if __name__ == "__main__":
     import argparse as _argparse
     _parser = _argparse.ArgumentParser(description="Mise à jour incrémentale des données MLB.")
-    _parser.add_argument(
-        "--prices-all", action="store_true",
-        help="Fetch prices pour tous les joueurs GW (~10k appels API, lent)",
-    )
+    _parser.add_argument("--prices-all", action="store_true",
+        help="Fetch prices pour tous les joueurs GW (~10k appels API, lent)")
+    _parser.add_argument("--from", dest="from_step", type=int, default=1, metavar="N",
+        help="Démarre à partir de l'étape N (1-11)")
+    _parser.add_argument("--only", dest="only_step", type=int, default=None, metavar="N",
+        help="Exécute uniquement l'étape N")
     _args = _parser.parse_args()
+
+    _s = _args.only_step or _args.from_step
+    _e = _args.only_step or 11
+
+    def _run(n: int) -> bool:
+        return _s <= n <= _e
 
     engine, api_headers, manager_list = _load_config()
 
-    print("\n[1/8] Players & équipes (lent)...")
-    df_teams = fetch_teams(api_headers)
-    store_teams(engine, df_teams)
-    fetch_and_store_players(engine, df_teams["team_slug"].tolist(), api_headers)
+    if _run(1):
+        print("\n[1/10] Players & équipes (lent)...")
+        df_teams = fetch_teams(api_headers)
+        store_teams(engine, df_teams)
+        fetch_and_store_players(engine, df_teams["team_slug"].tolist(), api_headers)
 
-    print("\n[2/8] Galerie...")
-    refresh_gallery(engine, manager_list, api_headers)
+    if _run(2):
+        print("\n[2/10] Galerie...")
+        refresh_gallery(engine, manager_list, api_headers)
 
-    print("\n  Chargement des fixtures CLASSIC disponibles...")
-    all_fixtures = _all_fixtures(api_headers)
-    completed    = [f for f in all_fixtures if not f["canCompose"]]
-    print(f"  {len(completed)} fixtures terminees (GW{completed[0]['gameWeek']} - GW{completed[-1]['gameWeek']})")
+    if _run(3) or _run(5):
+        print("\n  Chargement des fixtures CLASSIC disponibles...")
+        all_fixtures = _all_fixtures(api_headers)
+        completed    = [f for f in all_fixtures if not f["canCompose"]]
+        print(f"  {len(completed)} fixtures terminees (GW{completed[0]['gameWeek']} - GW{completed[-1]['gameWeek']})")
+    else:
+        all_fixtures = []
 
-    print("\n[3/8] Game infos (box scores)...")
-    update_game_infos(engine, api_headers, all_fixtures)
+    if _run(3):
+        print("\n[3/10] Game infos (box scores)...")
+        update_game_infos(engine, api_headers, all_fixtures)
 
-    print("\n[4/8] Game scores par GW (tous joueurs)...")
-    update_gw_scores(engine, api_headers, all_fixtures)
+    if _run(4):
+        print("\n[4/10] Météo...")
+        try:
+            _weather_run(engine)
+        except Exception as e:
+            print(f"  Avertissement météo : {e}")
 
-    print("\n[5/8] Historique nouveaux joueurs galerie...")
-    update_new_players(engine, api_headers)
+    if _run(5):
+        print("\n[5/10] Game scores par GW (tous joueurs)...")
+        update_gw_scores(engine, api_headers, all_fixtures)
 
-    print("\n[6/8] Précalcul stats galerie...")
-    precompute_gallery_stats(engine)
+    if _run(6):
+        print("\n[6/10] Historique nouveaux joueurs galerie...")
+        update_new_players(engine, api_headers)
 
-    print("\n[7/8] Prix cartes...")
-    update_prices(engine, api_headers, include_gw_players=_args.prices_all)
+    if _run(7):
+        print("\n[7/10] Précalcul stats galerie...")
+        precompute_gallery_stats(engine)
 
-    print("\n[8/8] Export parquet...")
-    export_to_parquet(engine)
+    if _run(8):
+        print("\n[8/10] Prix cartes...")
+        update_prices(engine, api_headers, include_gw_players=_args.prices_all)
 
-    print("\n[9/9] Predictions ML (prochaine GW)...")
-    try:
-        from ml_predict_gw import run as ml_run
-        ml_run(engine)
-    except Exception as e:
-        print(f"  Avertissement predictions ML : {e}")
+    if _run(9):
+        print("\n[9/10] Prix d'achat (card trades)...")
+        try:
+            update_card_trades(engine, manager_list, api_headers)
+        except Exception as e:
+            print(f"  Avertissement card trades : {e}")
+
+    if _run(10):
+        print("\n[10/10] Export parquet...")
+        export_to_parquet(engine)
+
+    if _run(11):
+        print("\n[11/11] Predictions ML (prochaine GW)...")
+        try:
+            from ml_predict_gw import run as ml_run
+            ml_run(engine)
+        except Exception as e:
+            print(f"  Avertissement predictions ML : {e}")
 
     print("\nMise a jour complete !")

@@ -70,10 +70,15 @@ def _load_fx_rates() -> dict:
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _api_post(payload: dict, headers: dict, timeout: int = 30, max_retries: int = 3) -> dict:
+def _api_post(payload: dict, headers: dict, timeout: int = 30, max_retries: int = 6) -> dict:
     for attempt in range(max_retries):
         try:
             resp = requests.post(SORARE_API, json=payload, headers=headers, timeout=timeout)
+            if resp.status_code == 429:
+                wait = 30 * (2 ** min(attempt, 3))
+                print(f"    429 rate-limit, attente {wait}s...")
+                time.sleep(wait)
+                continue
             resp.raise_for_status()
             data = resp.json()
             if "errors" in data:

@@ -34,6 +34,14 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 SORARE_API = "https://api.sorare.com/graphql"
 SLEEP_BETWEEN_CALLS = 0.15   # secondes entre chaque appel match
 
+PITCHER_POSITIONS = {"SP", "RP", "baseball_starting_pitcher", "baseball_relief_pitcher"}
+
+
+def _position_to_category(position: str | None) -> str:
+    if position and position.upper() in {p.upper() for p in PITCHER_POSITIONS}:
+        return "PITCHING"
+    return "HITTING"
+
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -188,7 +196,7 @@ def flatten_to_rows(fixture: dict, game_meta: dict, game_data: dict) -> tuple[li
             "player_slug":    slug,
             "game_date":      game_date,
             "gw_int":         gw_int,
-            "position":       ps.get("position"),
+            "category":       _position_to_category(ps.get("position")),
             "score":          ps.get("score"),
             "played_in_game": played,
         })
@@ -218,7 +226,7 @@ def store(engine, all_score_rows: list, all_detail_rows: list, gw_int: int) -> N
     # différents pour le même instant, ex. +01:00 vs +00:00, ce qui trompe pandas)
     df_scores = pd.DataFrame(all_score_rows)
     df_scores["game_date"] = pd.to_datetime(df_scores["game_date"], utc=True)
-    df_scores = df_scores.drop_duplicates(subset=["player_slug", "game_date"])
+    df_scores = df_scores.drop_duplicates(subset=["player_slug", "game_date", "category"])
 
     df_details = pd.DataFrame(all_detail_rows)
     df_details["game_date"] = pd.to_datetime(df_details["game_date"], utc=True)

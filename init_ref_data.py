@@ -111,18 +111,29 @@ def fetch_teams(headers: dict) -> pd.DataFrame:
         nodes {
           slug
           name
+          code
+          pictureUrl
         }
       }
     }"""
     data = _api_post({"query": query}, headers)
     nodes = data["data"]["teams"]["nodes"]
-    return pd.DataFrame([{"team_slug": n["slug"], "team_name": n["name"]} for n in nodes])
+    return pd.DataFrame([{
+        "team_slug":    n["slug"],
+        "team_name":    n["name"],
+        "team_code":    n.get("code"),
+        "picture_url":  n.get("pictureUrl"),
+    } for n in nodes])
 
 
 def store_teams(engine, df: pd.DataFrame) -> None:
     _truncate(engine, "mlb.teams")
     df.to_sql("teams", engine, schema="mlb", if_exists="append", index=False)
     print(f"  {len(df)} équipes enregistrées dans mlb.teams")
+
+    parquet_path = Path(__file__).parent / "data" / "teams.parquet"
+    df[["team_slug", "team_code"]].to_parquet(parquet_path, index=False)
+    print(f"  Export → {parquet_path}")
 
 
 # ── Players ────────────────────────────────────────────────────────────────────
@@ -224,11 +235,12 @@ def fetch_and_store_players(engine, team_slugs: list, headers: dict) -> None:
         shirt = p.get("shirtNumber")
 
         next_gw_score = p.get("nextClassicFixtureProjectedScore")
+        active_club = p.get("activeClub") or {}
         players_rows.append({
             "player_slug":               p["slug"],
             "display_name":              p["displayName"],
             "age":                       p.get("age"),
-            "team_slug":                 team_by_slug.get(slug),
+            "team_slug":                 active_club.get("slug") or team_by_slug.get(slug),
             "country":                   p["country"]["name"] if p.get("country") else None,
             "bat_hand":                  p.get("batHand"),
             "shirt_number":              shirt,
