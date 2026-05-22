@@ -242,7 +242,7 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 .pcard__sub { color: var(--fg-2); font-size: 10px; margin-top: 2px; letter-spacing: 0.03em; }
 .pcard__rarity-dot { width: 7px; height: 7px; display: inline-block; flex-shrink: 0; }
 .pcard__art {
-  height: 90px;
+  height: 113px;
   background: repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0 6px, transparent 6px 12px),
     var(--team-grad, linear-gradient(135deg,#1b232e,#11161d));
   border-bottom: 1px solid var(--line);
@@ -250,9 +250,11 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
   position: relative; overflow: hidden;
 }
 .pcard__art::before { content:""; position:absolute; inset:0; background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,0.5)); }
-.pcard__monogram { font-weight: 700; font-size: 30px; color: rgba(255,255,255,0.8); letter-spacing: -0.04em; text-shadow: 0 2px 8px rgba(0,0,0,0.4); z-index: 1; }
-.pcard__art-tag { position: absolute; top: 7px; right: 7px; font-size: 8px; letter-spacing: 0.1em; padding: 1px 5px; background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.15); z-index: 1; white-space: nowrap; }
-.pcard__card-img { height: 100%; width: auto; max-width: 100%; object-fit: contain; object-position: top center; opacity: 0.72; position: relative; z-index: 1; }
+.pcard__art-body { display:flex; align-items:center; justify-content:center; gap:10px; z-index:1; position:relative; width:100%; height:100%; padding:8px 12px; box-sizing:border-box; }
+.pcard__monogram { font-weight: 700; font-size: 30px; color: rgba(255,255,255,0.8); letter-spacing: -0.04em; text-shadow: 0 2px 8px rgba(0,0,0,0.4); flex-shrink:0; }
+.pcard__art-tag { position: absolute; top: 7px; right: 7px; font-size: 8px; letter-spacing: 0.1em; padding: 1px 5px; background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.15); z-index: 2; white-space: nowrap; }
+.pcard__card-img { height: 100%; width: auto; max-width: 42%; object-fit: contain; object-position: top center; opacity: 0.78; flex-shrink: 0; }
+.pcard__art-spark-wrap { flex:1; display:flex; align-items:center; justify-content:center; min-width:0; }
 .pcard__row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--line); }
 .pcard__row .cell { padding: 7px 9px; border-right: 1px solid var(--line); }
 .pcard__row .cell:last-child { border-right: none; }
@@ -784,20 +786,28 @@ def compact_multiselect(label: str, options: list, key: str) -> list:
 
 # ── Composants UI ──────────────────────────────────────────────────────────────
 
-def gen_bar_sparkline_svg(values, w=88, h=20) -> str:
+def gen_bar_sparkline_svg(values, w=88, h=20, target=0.0) -> str:
     if not values:
         return f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}"></svg>'
     n = len(values)
-    mx = max(values) if max(values) > 0 else 1
+    effective_max = max(max(values), target) if target > 0 else max(values)
+    mx = effective_max if effective_max > 0 else 1
     bar_w = max(3, (w - n + 1) // n)
     bars = ""
     for i, v in enumerate(values):
         bh = max(2, round((max(0, v) / mx) * (h - 2)))
-        x = i * (bar_w + 1)
-        y = h - bh
+        x  = i * (bar_w + 1)
+        y  = h - bh
         alpha = round(0.35 + 0.65 * (i / max(1, n - 1)), 2)
         bars += f'<rect x="{x}" y="{y}" width="{bar_w}" height="{bh}" fill="var(--accent)" opacity="{alpha}" rx="1"/>'
-    return f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}">{bars}</svg>'
+    target_line = ""
+    if target > 0:
+        ty = max(1, min(h - 1, round(h - (target / mx) * (h - 2))))
+        target_line = (
+            f'<line x1="0" y1="{ty}" x2="{w}" y2="{ty}"'
+            f' stroke="#fbbf24" stroke-width="1" stroke-dasharray="3,2" opacity="0.55"/>'
+        )
+    return f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}">{bars}{target_line}</svg>'
 
 
 def gen_sparkline_svg(values, w=160, h=24, color="var(--accent)") -> str:
@@ -947,7 +957,7 @@ def _fmt_date_header(dt: datetime) -> str:
     return label
 
 
-def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | None = None, picture_url: str | None = None) -> str:
+def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | None = None, picture_url: str | None = None, target: float = 0.0) -> str:
     rar_raw  = (row["card_display_rarity"] or "").lower()
     rar_css  = {"limited": "r-limited", "rare": "r-rare", "super_rare": "r-superrare", "unique": "r-unique"}.get(rar_raw, "")
     rank_css = ["r1", "r2", "r3"][rank] if rank < 3 else ""
@@ -964,7 +974,35 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
     monogram = row["player_name"].split()[-1][:3].upper()
     pred     = row.get("pred_median")
     pred_str = f"{pred:.1f}" if pred and not pd.isna(pred) else "—"
-    spark_svg = gen_sparkline_svg(spark_values) if spark_values else ""
+
+    # Indicateur principal : fois où l'objectif est atteint (si objectif défini)
+    if target > 0 and spark_values:
+        n_reached = sum(1 for v in spark_values if v >= target)
+        n_total   = len(spark_values)
+        stat_val_html = (
+            f'<div class="v pos">{n_reached}'
+            f'<span style="font-size:10px;color:var(--fg-2);font-weight:400">/{n_total}</span></div>'
+        )
+        stat_key = "Objectif"
+    else:
+        stat_val_html = f'<div class="v pos">{row["moyenne"]:.2f}</div>'
+        stat_key = stat_label
+
+    # Sparkline barres dans l'art block
+    art_spark = ""
+    if spark_values:
+        art_spark = (
+            f'<div class="pcard__art-spark-wrap">'
+            + gen_bar_sparkline_svg(spark_values, w=96, h=82, target=target)
+            + f'</div>'
+        )
+
+    img_or_mono = (
+        f'<img src="{picture_url}" class="pcard__card-img" alt="{monogram}"/>'
+        if picture_url else
+        f'<div class="pcard__monogram">{monogram}</div>'
+    )
+
     return (
         f'<div class="{card_cls}">'
         f'<div class="pcard__hd">'
@@ -976,18 +1014,17 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
         f'<span class="pcard__rarity-dot" style="background:var(--{rar_css},#888)"></span>'
         f'</div>'
         f'<div class="pcard__art">'
-        + (f'<img src="{picture_url}" class="pcard__card-img" alt="{monogram}"/>'
-           if picture_url else f'<div class="pcard__monogram">{monogram}</div>')
-        + f'<span class="pcard__art-tag">{rar_lbl}</span></div>'
+        f'<div class="pcard__art-body">{img_or_mono}{art_spark}</div>'
+        f'<span class="pcard__art-tag">{rar_lbl}</span>'
+        f'</div>'
         f'<div class="pcard__row">'
-        f'<div class="cell"><div class="k">{stat_label}</div><div class="v pos">{row["moyenne"]:.2f}</div></div>'
+        f'<div class="cell"><div class="k">{stat_key}</div>{stat_val_html}</div>'
         f'<div class="cell"><div class="k">ML Pred</div><div class="v">{pred_str}</div></div>'
         f'<div class="cell"><div class="k">Matchs</div><div class="v dim">{int(row["nb_matchs"])}</div></div>'
         f'</div>'
-        + (f'<div class="pcard__spark">{spark_svg}</div>' if spark_svg else "")
-        + f'<div class="pcard__meta">{rar_tag}{is_tag}{pp_tag}'
+        f'<div class="pcard__meta">{rar_tag}{is_tag}{pp_tag}'
         f'<span style="margin-left:auto;font-size:9px;color:var(--fg-3)">{coup}</span></div>'
-        f"</div>"
+        f'</div>'
     )
 
 
@@ -1480,6 +1517,11 @@ with tab1:
             f'</div>',
             unsafe_allow_html=True,
         )
+        # Sparklines pour tous les joueurs visibles (top3 + classement)
+        _spark_map = load_stat_sparklines(
+            tuple(df_view["player_slug"].tolist()), sel_stat_label
+        )
+
         # Mapping slug → picture_url : carte IS la plus récente, sinon rareté max
         _rar_rank = {"Unique": 0, "Super Rare": 1, "Rare": 2, "Limited": 3}
         _top3_pic_map: dict = {}
@@ -1500,8 +1542,15 @@ with tab1:
         top3_cols = st.columns(len(top3))
         for i, ((_, row), col) in enumerate(zip(top3.iterrows(), top3_cols)):
             with col:
-                pic_url = _top3_pic_map.get(row["player_slug"])
-                st.markdown(render_terminal_card(i, row, sel_stat_label, picture_url=pic_url), unsafe_allow_html=True)
+                pic_url    = _top3_pic_map.get(row["player_slug"])
+                spark_vals = _spark_map.get(row["player_slug"])
+                st.markdown(
+                    render_terminal_card(i, row, sel_stat_label,
+                                         spark_values=spark_vals,
+                                         picture_url=pic_url,
+                                         target=target),
+                    unsafe_allow_html=True,
+                )
                 if st.button("Historique", key=f"hist_top_{i}", use_container_width=True):
                     show_player_chart(row["player_slug"], row["player_name"],
                                       sel_stat, sel_stat_label, target)
@@ -1513,10 +1562,6 @@ with tab1:
             f'<span class="pill">{len(df_view)} joueurs</span>'
             f'</div>',
             unsafe_allow_html=True,
-        )
-        # Sparklines par joueur
-        _spark_map = load_stat_sparklines(
-            tuple(df_view["player_slug"].tolist()), sel_stat_label
         )
 
         _RAR_COLOR = {"limited": "var(--r-limited)", "rare": "var(--r-rare)",
@@ -1534,7 +1579,7 @@ with tab1:
                         else ('<span class="tag classic" style="margin:0">OOS</span>'
                               if row.get("in_season_eligible") is False else ""))
             _pp_tag  = '<span class="tag pp" style="margin:0">PP</span>' if row.get("is_pp") else ""
-            _spark   = gen_bar_sparkline_svg(_spark_map.get(_slug, []))
+            _spark   = gen_bar_sparkline_svg(_spark_map.get(_slug, []), target=target)
             _moy     = f'{row["moyenne"]:.2f}'
             _matchs  = int(row["nb_matchs"])
             _heure   = row.get("coup_envoi") or "—"
