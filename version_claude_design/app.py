@@ -194,7 +194,7 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 .panel__hd .pill { font-size: 9px; padding: 1px 6px; border: 1px solid var(--line-2); color: var(--fg-1); }
 .panel__hd .pill.live { color: var(--pos); border-color: rgba(74,222,128,0.4); }
 .panel__hd .pill.accent { color: var(--accent); border-color: rgba(111,240,200,0.3); }
-.panel__hd .right { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--fg-2); }
+.panel__hd .right { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--fg-2); white-space: nowrap; }
 .panel__bd { padding: 12px 14px; }
 
 /* ── Metrics ── */
@@ -220,7 +220,7 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 .ls-cell .k { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 6px; }
 .ls-cell .v { font-size: 22px; font-weight: 600; color: var(--fg-0); font-variant-numeric: tabular-nums; }
 .ls-cell .v.pos { color: var(--pos); } .ls-cell .v.warn { color: var(--warn); } .ls-cell .v.accent { color: var(--accent); }
-.ls-cell .sub { font-size: 10px; color: var(--fg-2); margin-top: 3px; }
+.ls-cell .sub { font-size: 10px; color: var(--fg-2); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ls-cell .headline { display: flex; align-items: baseline; gap: 10px; }
 .ls-cell .headline .big { font-size: 26px; font-weight: 700; color: var(--fg-0); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 
@@ -251,7 +251,8 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 }
 .pcard__art::before { content:""; position:absolute; inset:0; background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,0.5)); }
 .pcard__monogram { font-weight: 700; font-size: 30px; color: rgba(255,255,255,0.8); letter-spacing: -0.04em; text-shadow: 0 2px 8px rgba(0,0,0,0.4); z-index: 1; }
-.pcard__art-tag { position: absolute; top: 7px; right: 7px; font-size: 8px; letter-spacing: 0.1em; padding: 1px 5px; background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.15); z-index: 1; }
+.pcard__art-tag { position: absolute; top: 7px; right: 7px; font-size: 8px; letter-spacing: 0.1em; padding: 1px 5px; background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.85); border: 1px solid rgba(255,255,255,0.15); z-index: 1; white-space: nowrap; }
+.pcard__card-img { height: 100%; width: auto; max-width: 100%; object-fit: contain; object-position: top center; opacity: 0.72; position: relative; z-index: 1; }
 .pcard__row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--line); }
 .pcard__row .cell { padding: 7px 9px; border-right: 1px solid var(--line); }
 .pcard__row .cell:last-child { border-right: none; }
@@ -261,7 +262,7 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 .pcard__spark { height: 32px; padding: 5px 9px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 6px; }
 .pcard__spark svg { flex: 1; }
 .pcard__meta { display: flex; align-items: center; gap: 5px; padding: 7px 9px; border-top: 1px solid var(--line); font-size: 10px; color: var(--fg-2); flex-wrap: wrap; }
-.tag { font-size: 9px; padding: 1px 5px; border: 1px solid var(--line-2); color: var(--fg-1); letter-spacing: 0.04em; }
+.tag { font-size: 9px; padding: 1px 5px; border: 1px solid var(--line-2); color: var(--fg-1); letter-spacing: 0.04em; white-space: nowrap; }
 .tag.is { color: var(--pos); border-color: rgba(74,222,128,0.35); }
 .tag.classic { color: var(--info); border-color: rgba(95,179,255,0.35); }
 .tag.pp { color: var(--warn); border-color: rgba(251,191,36,0.35); }
@@ -316,6 +317,23 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 
 /* ── Misc ── */
 .divider-h { height: 1px; background: var(--line); margin: 12px 0; }
+
+/* ── Tab1 ranking table ── */
+.t1-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+.t1-table thead th { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-3); padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; font-weight: 400; white-space: nowrap; }
+.t1-table thead th.r { text-align: right; }
+.t1-table tbody tr { border-bottom: 1px solid rgba(255,255,255,0.03); }
+.t1-table tbody tr:hover { background: var(--bg-2); }
+.t1-table td { padding: 7px 10px; vertical-align: middle; }
+.t1-player { min-width: 130px; }
+.t1-name { color: var(--fg-0); font-weight: 600; font-size: 11px; white-space: nowrap; }
+.t1-meta { color: var(--fg-3); font-size: 9px; margin-top: 2px; display: flex; gap: 5px; align-items: center; }
+.t1-spark { width: 92px; padding-right: 4px; }
+.t1-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.t1-heure { text-align: right; color: var(--fg-2); white-space: nowrap; }
+.t1-adv { color: var(--fg-2); white-space: nowrap; }
+.t1-hist { padding: 2px 6px; background: transparent; border: 1px solid var(--line-2); color: var(--fg-3); font-family: var(--mono); font-size: 9px; cursor: pointer; letter-spacing: 0.06em; }
+.t1-hist:hover { border-color: var(--accent); color: var(--accent); }
 .empty-state { padding: 40px 20px; text-align: center; color: var(--fg-2); font-size: 11px; }
 .spark-line { stroke: var(--accent); stroke-width: 1.2; fill: none; }
 .spark-fill { fill: var(--accent); opacity: 0.1; }
@@ -766,6 +784,22 @@ def compact_multiselect(label: str, options: list, key: str) -> list:
 
 # ── Composants UI ──────────────────────────────────────────────────────────────
 
+def gen_bar_sparkline_svg(values, w=88, h=20) -> str:
+    if not values:
+        return f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}"></svg>'
+    n = len(values)
+    mx = max(values) if max(values) > 0 else 1
+    bar_w = max(3, (w - n + 1) // n)
+    bars = ""
+    for i, v in enumerate(values):
+        bh = max(2, round((max(0, v) / mx) * (h - 2)))
+        x = i * (bar_w + 1)
+        y = h - bh
+        alpha = round(0.35 + 0.65 * (i / max(1, n - 1)), 2)
+        bars += f'<rect x="{x}" y="{y}" width="{bar_w}" height="{bh}" fill="var(--accent)" opacity="{alpha}" rx="1"/>'
+    return f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}">{bars}</svg>'
+
+
 def gen_sparkline_svg(values, w=160, h=24, color="var(--accent)") -> str:
     if not values:
         return ""
@@ -790,6 +824,24 @@ def load_today_games(today_date: str) -> pd.DataFrame:
     g = games[games["game_date"].dt.date == today].copy()
     g = g.sort_values("game_date").reset_index(drop=True)
     return g
+
+
+@st.cache_data(ttl=3600)
+def load_stat_sparklines(player_slugs: tuple, stat_short: str, n_games: int = 10) -> dict:
+    p = _DATA_DIR / "game_score_details.parquet"
+    if not p.exists() or not player_slugs:
+        return {}
+    gsd = pd.read_parquet(p, columns=["player_slug", "game_date", "stat_short_name", "stat_value"])
+    gsd = gsd[gsd["player_slug"].isin(player_slugs) & (gsd["stat_short_name"] == stat_short)]
+    if gsd.empty:
+        return {}
+    gsd["game_date"] = pd.to_datetime(gsd["game_date"], utc=True, errors="coerce")
+    gsd["rk"] = gsd.groupby("player_slug")["game_date"].rank(ascending=False, method="first").astype(int)
+    gsd = gsd[gsd["rk"] <= n_games].sort_values(["player_slug", "game_date"])
+    return {
+        slug: [max(0.0, float(v)) for v in grp["stat_value"].fillna(0).tolist()]
+        for slug, grp in gsd.groupby("player_slug")
+    }
 
 
 @st.cache_data(ttl=86400)
@@ -895,7 +947,7 @@ def _fmt_date_header(dt: datetime) -> str:
     return label
 
 
-def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | None = None) -> str:
+def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | None = None, picture_url: str | None = None) -> str:
     rar_raw  = (row["card_display_rarity"] or "").lower()
     rar_css  = {"limited": "r-limited", "rare": "r-rare", "super_rare": "r-superrare", "unique": "r-unique"}.get(rar_raw, "")
     rank_css = ["r1", "r2", "r3"][rank] if rank < 3 else ""
@@ -923,8 +975,10 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
         f'</div>'
         f'<span class="pcard__rarity-dot" style="background:var(--{rar_css},#888)"></span>'
         f'</div>'
-        f'<div class="pcard__art"><div class="pcard__monogram">{monogram}</div>'
-        f'<span class="pcard__art-tag">{rar_lbl}</span></div>'
+        f'<div class="pcard__art">'
+        + (f'<img src="{picture_url}" class="pcard__card-img" alt="{monogram}"/>'
+           if picture_url else f'<div class="pcard__monogram">{monogram}</div>')
+        + f'<span class="pcard__art-tag">{rar_lbl}</span></div>'
         f'<div class="pcard__row">'
         f'<div class="cell"><div class="k">{stat_label}</div><div class="v pos">{row["moyenne"]:.2f}</div></div>'
         f'<div class="cell"><div class="k">ML Pred</div><div class="v">{pred_str}</div></div>'
@@ -1181,12 +1235,17 @@ with st.sidebar:
 
     st.divider()
     st.caption("Filtre calendrier")
-    _avail_days = sorted(
+    # Jours dispo : union calendar (next_game_date) + games.parquet (plus fiable)
+    _days_cal = set(
         df_calendar[
             (df_calendar["gallery_manager"] == sel_manager) &
             (df_calendar["next_game_date"].dt.date >= today_paris)
         ]["next_game_date"].dt.date.unique()
     )
+    _games_all = pd.read_parquet(_DATA_DIR / "games.parquet")
+    _games_all["game_date"] = pd.to_datetime(_games_all["game_date"], utc=True, errors="coerce")
+    _days_games = set(_games_all[_games_all["game_date"].dt.date >= today_paris]["game_date"].dt.date.unique())
+    _avail_days = sorted(_days_cal | _days_games)
     _day_labels = ["Tous les jours"] + [d.strftime("%a %d %b") for d in _avail_days]
     _today_label = today_paris.strftime("%a %d %b")
     _default_idx = _day_labels.index(_today_label) if _today_label in _day_labels else 0
@@ -1228,17 +1287,60 @@ stat_avg_map = (
 )
 
 # Tab 1 : jour sélectionné via sidebar, ou aujourd'hui par défaut
-_day_filter = sel_day if sel_day is not None else today_paris
-_cal_today = df_calendar[
-    (df_calendar["gallery_manager"] == sel_manager) &
-    (df_calendar["next_game_date"].dt.date == _day_filter)
-]
-_slugs_today   = set(_cal_today["player_slug"])
+_day_filter    = sel_day if sel_day is not None else today_paris
 _injured_slugs = set(load_injured_players())
+
+# Filtre "qui joue ce jour" depuis games.parquet (fiable) + active_club_slug du calendar
+# La source next_game_date de Sorare peut être en retard d'un jour
+_games_day = load_today_games(str(_day_filter))
+_cal_mgr   = df_calendar[df_calendar["gallery_manager"] == sel_manager][
+    ["player_slug", "active_club_slug"]
+].drop_duplicates("player_slug")
+_slug_club = dict(zip(_cal_mgr["player_slug"], _cal_mgr["active_club_slug"]))
+
+if not _games_day.empty:
+    _teams_day = (
+        set(_games_day["home_team_slug"].dropna()) |
+        set(_games_day["away_team_slug"].dropna())
+    )
+    _tcodes = load_team_codes()
+    # team_slug → {heure Paris, home_away, opp_abbr}
+    _tgi: dict = {}
+    for _, _g in _games_day.iterrows():
+        _t  = _g["game_date"].astimezone(PARIS_TZ).strftime("%H:%M")
+        _ht = _g.get("home_team_slug") or ""
+        _at = _g.get("away_team_slug") or ""
+        if _ht:
+            _tgi[_ht] = {"heure": _t, "home_away": "home", "opp": _team_abbr(_at, _tcodes)}
+        if _at:
+            _tgi[_at] = {"heure": _t, "home_away": "away", "opp": _team_abbr(_ht, _tcodes)}
+    _slugs_today = {s for s, c in _slug_club.items() if c in _teams_day}
+else:
+    # Fallback : next_game_date du calendar
+    _cal_today   = df_calendar[
+        (df_calendar["gallery_manager"] == sel_manager) &
+        (df_calendar["next_game_date"].dt.date == _day_filter)
+    ]
+    _slugs_today = set(_cal_today["player_slug"])
+    _tgi         = {}
+
 df_today = (
     df[df["player_slug"].isin(_slugs_today) & ~df["player_slug"].isin(_injured_slugs)]
-    .reset_index(drop=True)
+    .copy().reset_index(drop=True)
 )
+
+# Override matchup/coup_envoi avec données fraîches depuis games.parquet
+if _tgi:
+    def _matchup_live(row):
+        gi = _tgi.get(_slug_club.get(row["player_slug"], ""))
+        if gi:
+            return f"vs {gi['opp']}" if gi["home_away"] == "home" else f"@ {gi['opp']}"
+        return row.get("matchup") or "—"
+    def _coup_envoi_live(row):
+        gi = _tgi.get(_slug_club.get(row["player_slug"], ""))
+        return gi["heure"] if gi else (row.get("coup_envoi") or "—")
+    df_today["matchup"]    = df_today.apply(_matchup_live, axis=1)
+    df_today["coup_envoi"] = df_today.apply(_coup_envoi_live, axis=1)
 
 # Enrichir df_today avec in_season_eligible depuis df_calendar
 _is_map = (
@@ -1378,11 +1480,28 @@ with tab1:
             f'</div>',
             unsafe_allow_html=True,
         )
+        # Mapping slug → picture_url : carte IS la plus récente, sinon rareté max
+        _rar_rank = {"Unique": 0, "Super Rare": 1, "Rare": 2, "Limited": 3}
+        _top3_pic_map: dict = {}
+        if not df_prices.empty and sel_manager:
+            _mgr_cards = df_prices[df_prices["gallery_manager"] == sel_manager].copy()
+            _mgr_cards["_rar_rank"] = _mgr_cards["card_display_rarity"].map(_rar_rank).fillna(99)
+            _mgr_cards = _mgr_cards.sort_values(
+                ["in_season_eligible", "_rar_rank"], ascending=[False, True]
+            )
+            _top3_pic_map = (
+                _mgr_cards.dropna(subset=["picture_url"])
+                .drop_duplicates("player_slug")
+                .set_index("player_slug")["picture_url"]
+                .to_dict()
+            )
+
         top3      = df_view.head(3)
         top3_cols = st.columns(len(top3))
         for i, ((_, row), col) in enumerate(zip(top3.iterrows(), top3_cols)):
             with col:
-                st.markdown(render_terminal_card(i, row, sel_stat_label), unsafe_allow_html=True)
+                pic_url = _top3_pic_map.get(row["player_slug"])
+                st.markdown(render_terminal_card(i, row, sel_stat_label, picture_url=pic_url), unsafe_allow_html=True)
                 if st.button("Historique", key=f"hist_top_{i}", use_container_width=True):
                     show_player_chart(row["player_slug"], row["player_name"],
                                       sel_stat, sel_stat_label, target)
@@ -1395,40 +1514,74 @@ with tab1:
             f'</div>',
             unsafe_allow_html=True,
         )
-        st.caption("Clic sur une ligne → historique joueur")
-
-        df_view["_is_lbl"] = df_view["in_season_eligible"].map(
-            lambda v: "IS" if v is True else ("Classic" if v is False else "—")
+        # Sparklines par joueur
+        _spark_map = load_stat_sparklines(
+            tuple(df_view["player_slug"].tolist()), sel_stat_label
         )
-        df_view["_pp_lbl"] = df_view["is_pp"].map(lambda v: "PP" if v else "")
 
-        table = df_view[[
-            "player_name", "position_agg", "card_display_rarity",
-            "_is_lbl", "_pp_lbl", "moyenne", "nb_matchs", "coup_envoi", "matchup",
-        ]].rename(columns={
-            "player_name":         "Joueur",
-            "position_agg":        "Poste",
-            "card_display_rarity": "Rareté",
-            "_is_lbl":             "Saison",
-            "_pp_lbl":             "PP",
-            "moyenne":             sel_stat_label,
-            "nb_matchs":           "Matchs",
-            "coup_envoi":          "Heure (UTC)",
-            "matchup":             "Adversaire",
-        })
+        _RAR_COLOR = {"limited": "var(--r-limited)", "rare": "var(--r-rare)",
+                      "super_rare": "var(--r-superrare)", "unique": "var(--r-unique)"}
 
-        event = st.dataframe(table, use_container_width=True, hide_index=True,
-                             on_select="rerun", selection_mode="single-row")
-        sel_rows = event.selection.rows
-        if sel_rows:
-            idx = sel_rows[0]
-            if st.session_state.get("_tab1_sel") != idx:
-                st.session_state["_tab1_sel"] = idx
-                row = df_view.iloc[idx]
-                show_player_chart(row["player_slug"], row["player_name"],
-                                  sel_stat, sel_stat_label, target)
-        else:
-            st.session_state.pop("_tab1_sel", None)
+        rows_html = ""
+        for _, row in df_view.iterrows():
+            _slug    = row["player_slug"]
+            _rar_raw = (row.get("card_display_rarity") or "").lower().replace(" ", "_")
+            _rar_col = _RAR_COLOR.get(_rar_raw, "var(--fg-3)")
+            _rar_lbl = (row.get("card_display_rarity") or "").upper()
+            _pos     = row.get("position_agg") or "?"
+            _is_tag  = ('<span class="tag is" style="margin:0">IS</span>'
+                        if row.get("in_season_eligible") is True
+                        else ('<span class="tag classic" style="margin:0">OOS</span>'
+                              if row.get("in_season_eligible") is False else ""))
+            _pp_tag  = '<span class="tag pp" style="margin:0">PP</span>' if row.get("is_pp") else ""
+            _spark   = gen_bar_sparkline_svg(_spark_map.get(_slug, []))
+            _moy     = f'{row["moyenne"]:.2f}'
+            _matchs  = int(row["nb_matchs"])
+            _heure   = row.get("coup_envoi") or "—"
+            _matchup = row.get("matchup") or "—"
+            rows_html += (
+                f'<tr>'
+                f'<td class="t1-player">'
+                f'<div class="t1-name">{row["player_name"]}</div>'
+                f'<div class="t1-meta">'
+                f'<span style="color:{_rar_col}">{_rar_lbl}</span>'
+                f'<span style="color:var(--fg-3)">·</span>'
+                f'<span>{_pos}</span>'
+                f'{_is_tag}{_pp_tag}'
+                f'</div></td>'
+                f'<td class="t1-spark">{_spark}</td>'
+                f'<td class="t1-num" style="color:var(--pos)">{_moy}</td>'
+                f'<td class="t1-num" style="color:var(--fg-3);font-size:10px">{_matchs}</td>'
+                f'<td class="t1-heure">{_heure}</td>'
+                f'<td class="t1-adv">{_matchup}</td>'
+                f'</tr>'
+            )
+
+        st.markdown(
+            f'<table class="t1-table">'
+            f'<thead><tr>'
+            f'<th>Joueur</th>'
+            f'<th>Tendance</th>'
+            f'<th class="r">{sel_stat_label}</th>'
+            f'<th class="r">Matchs</th>'
+            f'<th class="r">Heure</th>'
+            f'<th>Adversaire</th>'
+            f'</tr></thead>'
+            f'<tbody>{rows_html}</tbody>'
+            f'</table>',
+            unsafe_allow_html=True,
+        )
+
+        # Historique via selectbox
+        _hist_names = df_view["player_name"].tolist()
+        _hist_sel = st.selectbox(
+            "📊 Historique", ["—"] + _hist_names,
+            key="tab1_hist_sel", label_visibility="collapsed",
+        )
+        if _hist_sel and _hist_sel != "—":
+            _hist_row = df_view[df_view["player_name"] == _hist_sel].iloc[0]
+            show_player_chart(_hist_row["player_slug"], _hist_row["player_name"],
+                              sel_stat, sel_stat_label, target)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
