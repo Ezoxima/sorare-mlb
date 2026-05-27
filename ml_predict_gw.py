@@ -291,12 +291,23 @@ def run(engine=None):
         pit_slugs_up.update(upg["home_probable_pitcher"].dropna())
         pit_slugs_up.update(upg["away_probable_pitcher"].dropna())
     pit_hand_up: dict = {}
+    pitcher_era_plus: dict = {}  # slug → ERA+ simplifié (saison en cours)
     if pit_slugs_up:
         ph_df = pd.read_sql(
             "SELECT player_slug, bat_hand FROM mlb.players WHERE player_slug IN %s",
             engine, params=(tuple(pit_slugs_up),)
         )
         pit_hand_up = ph_df.set_index("player_slug")["bat_hand"].to_dict()
+
+        try:
+            era_df = pd.read_sql("""
+                SELECT player_slug, era_plus_est
+                FROM mlb.pitcher_season_stats
+                WHERE season = EXTRACT(YEAR FROM NOW())::int
+            """, engine)
+            pitcher_era_plus = era_df.set_index("player_slug")["era_plus_est"].to_dict()
+        except Exception:
+            pass  # table absente → fallback EWMA seul
 
     # ── 6c. Park factors + météo ─────────────────────────────────────────────
     pf_df = pd.read_sql("""
@@ -354,7 +365,8 @@ def run(engine=None):
     team_home_count: dict   = {}
     team_away_count: dict   = {}
     team_game_venues: dict  = {}  # {team: [(park_team, game_id), ...]}
-    team_opp_pit_ewma: dict = {}  # {team: [ewma_lanceur_adverse, ...]}
+    team_opp_pit_ewma: dict  = {}  # {team: [ewma_lanceur_adverse, ...]}  — fallback
+    team_opp_era_plus: dict  = {}  # {team: [era_plus_lanceur_adverse, ...]}  — primaire
     team_game_hours: dict   = {}  # {team: [hour_utc, ...]}
     for _, g in upg.iterrows():
         aph = pit_hand_up.get(g.get("away_probable_pitcher") or "")
@@ -375,17 +387,19 @@ def run(engine=None):
             if pd.notna(gid):
                 team_game_venues.setdefault(a, []).append((h, gid))
 
-        # Qualité lanceur adverse (étape 6)
-        away_p = str(g.get("away_probable_pitcher") or "")
-        if away_p and h:
-            ev = pitcher_ewma_map.get(away_p)
+        # Qualité lanceur adverse (étape 6) — ERA+ et EWMA alimentés indépendamment
+        for pit_slug, opp_team in [
+            (str(g.get("away_probable_pitcher") or ""), h),
+            (str(g.get("home_probable_pitcher") or ""), a),
+        ]:
+            if not pit_slug or not opp_team:
+                continue
+            ep = pitcher_era_plus.get(pit_slug)
+            if ep is not None:
+                team_opp_era_plus.setdefault(opp_team, []).append(float(ep))
+            ev = pitcher_ewma_map.get(pit_slug)
             if ev:
-                team_opp_pit_ewma.setdefault(h, []).append(ev)
-        home_p = str(g.get("home_probable_pitcher") or "")
-        if home_p and a:
-            ev = pitcher_ewma_map.get(home_p)
-            if ev:
-                team_opp_pit_ewma.setdefault(a, []).append(ev)
+                team_opp_pit_ewma.setdefault(opp_team, []).append(ev)
 
         # Heure UTC du match (étape 7, jour/nuit)
         gdt = g.get("game_date")
@@ -539,15 +553,31 @@ def run(engine=None):
         weather_factor = round(sum(wf_list) / len(wf_list), 4) if wf_list else 1.0
 
         # ── Qualité lanceur adverse (hitters seulement) ──────────────────────
-        opp_ewmas = team_opp_pit_ewma.get(team, [])
-        if is_pit or not opp_ewmas:
+        # Combine ERA+ (qualité saison) + EWMA Sorare (forme récente) quand les
+        # deux sont disponibles ; utilise l'un ou l'autre sinon.
+        if is_pit:
             opp_quality_factor = 1.0
         else:
-            avg_opp = sum(opp_ewmas) / len(opp_ewmas)
-            ratio   = avg_opp / league_avg_pitcher if league_avg_pitcher > 0 else 1.0
-            opp_quality_factor = round(
-                max(0.80, min(1.20, 1.0 - OPP_QUALITY_SENSITIVITY * (ratio - 1.0))), 4
-            )
+            era_plus_vals = team_opp_era_plus.get(team, [])
+            ewma_vals     = team_opp_pit_ewma.get(team, [])
+
+            ratios = []
+            # Signal 1 : ERA+ (saison) — ratio = era_plus / 100
+            if era_plus_vals:
+                ratios.append(sum(era_plus_vals) / len(era_plus_vals) / 100.0)
+            # Signal 2 : EWMA Sorare (forme récente) — ratio = ewma / league_avg
+            if ewma_vals and league_avg_pitcher > 0:
+                ratios.append(
+                    (sum(ewma_vals) / len(ewma_vals)) / league_avg_pitcher
+                )
+
+            if not ratios:
+                opp_quality_factor = 1.0
+            else:
+                ratio = sum(ratios) / len(ratios)   # moyenne des signaux disponibles
+                opp_quality_factor = round(
+                    max(0.80, min(1.20, 1.0 - OPP_QUALITY_SENSITIVITY * (ratio - 1.0))), 4
+                )
 
         # ── Jour/nuit + repos ────────────────────────────────────────────────
         hours = team_game_hours.get(team, [])

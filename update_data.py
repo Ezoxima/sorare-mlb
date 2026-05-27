@@ -126,6 +126,23 @@ def _game_ids_from_db(engine, gw_int: int) -> list[dict]:
     return [{"id": r[0], "date": r[1].isoformat()} for r in rows]
 
 
+def _max_score_date(engine) -> str | None:
+    with engine.connect() as conn:
+        row = conn.execute(text(
+            "SELECT MAX(game_date)::text FROM mlb.game_scores"
+        )).fetchone()
+    return row[0] if row else None
+
+
+def _gallery_stats_exists(engine) -> bool:
+    with engine.connect() as conn:
+        row = conn.execute(text(
+            "SELECT EXISTS(SELECT 1 FROM information_schema.tables "
+            "WHERE table_schema='mlb' AND table_name='gallery_stats_agg')"
+        )).fetchone()
+    return bool(row[0]) if row else False
+
+
 # ── 1. Galerie ─────────────────────────────────────────────────────────────────
 
 def _get_gallery(slug: str, headers: dict) -> pd.DataFrame:
@@ -210,6 +227,7 @@ def _get_gallery(slug: str, headers: dict) -> pd.DataFrame:
                 "card_xp_needed_next_grade":    card["xpNeededForNextGrade"],
                 "card_power":                   card["power"],
                 "card_display_position":        positions[0] if positions else None,
+                "card_display_position_2":      positions[1] if len(positions) > 1 else None,
                 "player_slug":                  player["slug"],
                 "player_age":                   player["age"],
                 "in_season_eligible":           card["inSeasonEligible"],
@@ -254,17 +272,27 @@ def update_game_infos(engine, headers: dict, all_fixtures: list) -> None:
 
     if not missing:
         print("  A jour.")
-        return
+    else:
+        gw_range = f"GW{missing[0]['gameWeek']} a GW{missing[-1]['gameWeek']}"
+        print(f"  {len(missing)} GW manquantes ({gw_range})")
+        for i, f in enumerate(missing):
+            raw  = fetch_games(f["slug"], "CLASSIC", headers)
+            n    = sum(1 for g in raw if g and g.get("scored"))
+            game_rows, inning_rows = _flatten_games(raw, f["gameWeek"], f["slug"])
+            _store_games(engine, game_rows, inning_rows, f["gameWeek"])
+            print(f"  [{i+1}/{len(missing)}] GW{f['gameWeek']} — {n} matchs terminés")
+            time.sleep(SLEEP)
 
-    gw_range = f"GW{missing[0]['gameWeek']} a GW{missing[-1]['gameWeek']}"
-    print(f"  {len(missing)} GW manquantes ({gw_range})")
-
-    for i, f in enumerate(missing):
-        raw  = fetch_games(f["slug"], "CLASSIC", headers)
-        n    = sum(1 for g in raw if g and g.get("scored"))
-        game_rows, inning_rows = _flatten_games(raw, f["gameWeek"], f["slug"])
-        _store_games(engine, game_rows, inning_rows, f["gameWeek"])
-        print(f"  [{i+1}/{len(missing)}] GW{f['gameWeek']} — {n} matchs terminés")
+    # GW à venir (canCompose=True) : charge les matchs schedulés (dates + équipes)
+    upcoming = [f for f in all_fixtures if f["canCompose"]]
+    for f in upcoming:
+        raw = fetch_games(f["slug"], "CLASSIC", headers)
+        game_rows, inning_rows = _flatten_games(raw, f["gameWeek"], f["slug"],
+                                                include_unscored=True)
+        if game_rows:
+            _store_games(engine, game_rows, inning_rows, f["gameWeek"])
+            n = len(game_rows)
+            print(f"  GW{f['gameWeek']} (à venir) — {n} matchs schedulés chargés")
         time.sleep(SLEEP)
 
 
@@ -331,7 +359,7 @@ def update_new_players(engine, headers: dict) -> None:
     all_scores, all_details = [], []
     for i, slug in enumerate(new_slugs):
         print(f"  [{i+1}/{len(new_slugs)}] {slug}")
-        s, d = fetch_scores_for_player(slug, headers)
+        s, d = fetch_scores_for_player(slug, headers, start_date=None)
         all_scores.extend(s)
         all_details.extend(d)
 
@@ -508,6 +536,7 @@ def export_to_parquet(engine) -> None:
         _df(conn, """
             SELECT g.id_manager, g.gallery_manager, g.card_name, g.picture_url,
                    g.player_name, g.player_slug, g.card_display_rarity, g.card_display_position,
+                   g.card_display_position_2,
                    g.card_power, g.card_grade, g.card_xp, g.card_xp_needed_next_grade,
                    g.in_season_eligible, g.active_club_slug,
                    cp_is.price_eur  AS price_in_season,
@@ -594,6 +623,21 @@ def export_to_parquet(engine) -> None:
         ).to_parquet(data_dir / "teams.parquet", index=False)
         print("  teams.parquet")
 
+        try:
+            _df(conn, """
+                SELECT p.player_slug, pl.display_name, pl.team_slug,
+                       pl.agg_position_1 AS position,
+                       p.game_date, p.mlb_game_pk,
+                       p.pitches, p.strikes, p.batters_faced, p.innings_pitched_outs
+                FROM mlb.pitcher_game_pitches p
+                LEFT JOIN mlb.players pl ON p.player_slug = pl.player_slug
+                WHERE p.game_date >= NOW() - INTERVAL '30 days'
+                ORDER BY p.game_date DESC, p.pitches DESC NULLS LAST
+            """).to_parquet(data_dir / "pitcher_pitches.parquet", index=False)
+            print("  pitcher_pitches.parquet")
+        except Exception:
+            pass  # Table absente si fetch_pitch_counts n'a pas encore tourné
+
     print("  Export terminé.")
 
 
@@ -628,6 +672,8 @@ if __name__ == "__main__":
         print("\n[2/10] Galerie...")
         refresh_gallery(engine, manager_list, api_headers)
 
+    _snap_before = _max_score_date(engine) if (_run(3) or _run(5) or _run(6)) else None
+
     if _run(3) or _run(5):
         print("\n  Chargement des fixtures CLASSIC disponibles...")
         all_fixtures = _all_fixtures(api_headers)
@@ -655,9 +701,18 @@ if __name__ == "__main__":
         print("\n[6/10] Historique nouveaux joueurs galerie...")
         update_new_players(engine, api_headers)
 
+    if _snap_before is not None:
+        _snap_after = _max_score_date(engine)
+        _scores_changed = _snap_after != _snap_before
+    else:
+        _scores_changed = True
+
     if _run(7):
-        print("\n[7/10] Précalcul stats galerie...")
-        precompute_gallery_stats(engine)
+        if not _scores_changed and _gallery_stats_exists(engine):
+            print("\n[7/10] Précalcul stats galerie... (skippé — aucun nouveau score)")
+        else:
+            print("\n[7/10] Précalcul stats galerie...")
+            precompute_gallery_stats(engine)
 
     if _run(8):
         print("\n[8/10] Prix cartes...")
@@ -675,11 +730,40 @@ if __name__ == "__main__":
         export_to_parquet(engine)
 
     if _run(11):
-        print("\n[11/11] Predictions ML (prochaine GW)...")
+        print("\n[11/13] Stats saison pitchers (ERA+)...")
         try:
-            from ml_predict_gw import run as ml_run
-            ml_run(engine)
+            from fetch_pitcher_season_stats import run as era_run
+            era_run(engine)
         except Exception as e:
-            print(f"  Avertissement predictions ML : {e}")
+            print(f"  Avertissement ERA+ : {e}")
+
+        print("\n[12/13] Pitch counts (MLB Stats API)...")
+        try:
+            from fetch_pitch_counts import run as pc_run
+            pc_run(engine)
+        except Exception as e:
+            print(f"  Avertissement pitch counts : {e}")
+
+        print("\n[13/13] Predictions ML (prochaine GW)...")
+        _ml_parquet = Path(__file__).parent / "data" / "ml_predictions.parquet"
+        _sentinel   = Path(__file__).parent / "data" / ".ml_last_run"
+        _snap_ml    = _max_score_date(engine)
+        _skip_ml    = False
+        if not _scores_changed and _ml_parquet.exists():
+            try:
+                _stored  = _sentinel.read_text().strip() if _sentinel.exists() else ""
+                _skip_ml = bool(_stored) and _stored == str(_snap_ml or "")
+            except Exception:
+                pass
+        if _skip_ml:
+            print("  Skippé — aucun nouveau score depuis le dernier calcul.")
+        else:
+            try:
+                from ml_predict_gw import run as ml_run
+                ml_run(engine)
+                if _snap_ml:
+                    _sentinel.write_text(str(_snap_ml))
+            except Exception as e:
+                print(f"  Avertissement predictions ML : {e}")
 
     print("\nMise a jour complete !")

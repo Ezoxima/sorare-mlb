@@ -1,1251 +1,817 @@
 [
   {
-    "lineup_id": "390b3ae5-64f6-4596-bd67-490d22f8e17e",
-    "saved_at": "2026-05-18T20:15:30.942660+00:00",
-    "gw_int": 134,
+    "lineup_id": "903418a6-ac0b-410f-9014-d6e7cb7508db",
+    "saved_at": "2026-05-25T14:13:04.312344+00:00",
+    "gw_int": 136,
     "manager": "Ezox",
     "mode": "Hot Streak",
-    "rarity": "limited",
+    "rarity": "Limited",
     "score_src": "Sorare GW+",
     "slots": {
+      "MI": {
+        "card_name": "Brandon Lowe 2025-26 • Limited 263/1000",
+        "player_slug": "brandon-lowe-19940706",
+        "player_name": "Brandon Lowe",
+        "picture_url": "https://assets.sorare.com/card/c6c715d7-e8c9-4a72-b23c-398d73a1461d/picture/tinified-af9c7a7bc022e13bc71fb3a87d1b92b5.png",
+        "proj_score_eff": 34.1,
+        "proj_score": 29.0,
+        "card_power": "1.040"
+      },
       "SP": {
         "card_name": "Chris Sale 2026-27 • Limited 136/1000",
         "player_slug": "chris-sale-19890330",
         "player_name": "Chris Sale",
-        "proj_score_eff": 27.4,
-        "proj_score": 29.1,
-        "card_power": "1.090"
-      },
-      "RP": {
-        "card_name": "Cade Smith 2026-27 • Limited 265/1000",
-        "player_slug": "cade-smith-19990509",
-        "player_name": "Cade Smith",
-        "proj_score_eff": 41.4,
-        "proj_score": 15.1,
-        "card_power": "1.070"
-      },
-      "CI": {
-        "card_name": "Aaron Judge 2025-26 • Limited 372/1000",
-        "player_slug": "aaron-judge-19920426",
-        "player_name": "Aaron Judge",
-        "proj_score_eff": 49.1,
-        "proj_score": 25.2,
-        "card_power": "1.070"
-      },
-      "MI": {
-        "card_name": "Geraldo Perdomo 2026-27 • Limited 99/1000",
-        "player_slug": "geraldo-perdomo-19991022",
-        "player_name": "Geraldo Perdomo",
-        "proj_score_eff": 37.4,
-        "proj_score": 28.7,
-        "card_power": "1.090"
-      },
-      "OF": {
-        "card_name": "Brent Rooker 2026-27 • Limited 107/1000",
-        "player_slug": "brent-rooker-19941101",
-        "player_name": "Brent Rooker",
-        "proj_score_eff": 38.5,
-        "proj_score": 24.4,
-        "card_power": "1.100"
-      },
-      "Flex": {
-        "card_name": "José Ramírez 2026-27 • Limited 168/1000",
-        "player_slug": "jose-ramirez-19920917",
-        "player_name": "José Ramírez",
-        "proj_score_eff": 43.5,
-        "proj_score": 32.4,
-        "card_power": "1.100"
-      },
-      "Libre": {
-        "card_name": "James Wood 2026-27 • Limited 110/1000",
-        "player_slug": "james-wood-20020917",
-        "player_name": "James Wood",
-        "proj_score_eff": 37.1,
-        "proj_score": 35.6,
-        "card_power": "1.100"
-      }
-    },
-    "suggested_slots": {
-      "SP": {
-        "card_name": "Chris Sale 2026-27 • Limited 136/1000",
-        "player_slug": "chris-sale-19890330",
-        "player_name": "Chris Sale",
-        "proj_score_eff": 27.4,
-        "proj_score": 29.1,
-        "card_power": "1.090"
-      },
-      "RP": {
-        "card_name": "Cade Smith 2026-27 • Limited 265/1000",
-        "player_slug": "cade-smith-19990509",
-        "player_name": "Cade Smith",
-        "proj_score_eff": 41.4,
-        "proj_score": 15.1,
-        "card_power": "1.070"
-      },
-      "CI": {
-        "card_name": "Aaron Judge 2025-26 • Limited 372/1000",
-        "player_slug": "aaron-judge-19920426",
-        "player_name": "Aaron Judge",
-        "proj_score_eff": 49.1,
-        "proj_score": 25.2,
-        "card_power": "1.070"
-      },
-      "MI": {
-        "card_name": "Geraldo Perdomo 2026-27 • Limited 99/1000",
-        "player_slug": "geraldo-perdomo-19991022",
-        "player_name": "Geraldo Perdomo",
-        "proj_score_eff": 37.4,
-        "proj_score": 28.7,
-        "card_power": "1.090"
-      },
-      "OF": {
-        "card_name": "Brent Rooker 2026-27 • Limited 107/1000",
-        "player_slug": "brent-rooker-19941101",
-        "player_name": "Brent Rooker",
-        "proj_score_eff": 38.5,
-        "proj_score": 24.4,
-        "card_power": "1.100"
-      },
-      "Flex": {
-        "card_name": "José Ramírez 2026-27 • Limited 168/1000",
-        "player_slug": "jose-ramirez-19920917",
-        "player_name": "José Ramírez",
-        "proj_score_eff": 43.5,
-        "proj_score": 32.4,
-        "card_power": "1.100"
-      },
-      "Libre": {
-        "card_name": "James Wood 2026-27 • Limited 110/1000",
-        "player_slug": "james-wood-20020917",
-        "player_name": "James Wood",
-        "proj_score_eff": 37.1,
-        "proj_score": 35.6,
-        "card_power": "1.100"
-      }
-    }
-  },
-  {
-    "lineup_id": "eaf6a4ba-4a2d-45ed-8884-cef98f11a71c",
-    "saved_at": "2026-05-18T20:21:06.914432+00:00",
-    "gw_int": 134,
-    "manager": "Ezox",
-    "mode": "Hot Streak",
-    "rarity": "limited",
-    "score_src": "Sorare GW+",
-    "slots": {
-      "SP": {
-        "card_name": "Bryan Woo 2026-27 • Limited 242/1000",
-        "player_slug": "bryan-woo-20000130",
-        "player_name": "Bryan Woo",
-        "proj_score_eff": 24.5,
-        "proj_score": 19.75,
-        "card_power": "1.080"
-      },
-      "RP": {
-        "card_name": "Cade Smith 2025-26 • Limited 46/1000",
-        "player_slug": "cade-smith-19990509",
-        "player_name": "Cade Smith",
-        "proj_score_eff": 40.6,
-        "proj_score": 15.1,
-        "card_power": "1.050"
-      },
-      "CI": {
-        "card_name": "Ernie Clement 2026-27 • Limited 108/1000",
-        "player_slug": "ernie-clement-19960322",
-        "player_name": "Ernie Clement",
-        "proj_score_eff": 27.7,
-        "proj_score": 24.8,
-        "card_power": "1.090"
-      },
-      "MI": {
-        "card_name": "Otto Lopez 2026-27 • Limited 124/1000",
-        "player_slug": "otto-lopez-19981001",
-        "player_name": "Otto Lopez",
-        "proj_score_eff": 30.3,
-        "proj_score": 28.1,
-        "card_power": "1.090"
-      },
-      "OF": {
-        "card_name": "Julio Rodríguez 2026-27 • Limited 211/1000",
-        "player_slug": "julio-rodriguez-20001229",
-        "player_name": "Julio Rodríguez",
-        "proj_score_eff": 29.9,
-        "proj_score": 21.6,
-        "card_power": "1.090"
-      },
-      "Flex": {
-        "card_name": "Randy Arozarena 2026-27 • Limited 80/1000",
-        "player_slug": "randy-arozarena-19950228",
-        "player_name": "Randy Arozarena",
-        "proj_score_eff": 29.3,
-        "proj_score": 31.8,
-        "card_power": "1.100"
-      },
-      "Libre": {
-        "card_name": "Brice Turang 2026-27 • Limited 191/1000",
-        "player_slug": "brice-turang-19991121",
-        "player_name": "Brice Turang",
-        "proj_score_eff": 27.3,
-        "proj_score": 27.1,
-        "card_power": "1.090"
-      }
-    },
-    "suggested_slots": {
-      "SP": {
-        "card_name": "Bryan Woo 2026-27 • Limited 242/1000",
-        "player_slug": "bryan-woo-20000130",
-        "player_name": "Bryan Woo",
-        "proj_score_eff": 24.5,
-        "proj_score": 19.75,
-        "card_power": "1.080"
-      },
-      "RP": {
-        "card_name": "Cade Smith 2025-26 • Limited 46/1000",
-        "player_slug": "cade-smith-19990509",
-        "player_name": "Cade Smith",
-        "proj_score_eff": 40.6,
-        "proj_score": 15.1,
-        "card_power": "1.050"
-      },
-      "CI": {
-        "card_name": "Ernie Clement 2026-27 • Limited 108/1000",
-        "player_slug": "ernie-clement-19960322",
-        "player_name": "Ernie Clement",
-        "proj_score_eff": 27.7,
-        "proj_score": 24.8,
-        "card_power": "1.090"
-      },
-      "MI": {
-        "card_name": "Otto Lopez 2026-27 • Limited 124/1000",
-        "player_slug": "otto-lopez-19981001",
-        "player_name": "Otto Lopez",
-        "proj_score_eff": 30.3,
-        "proj_score": 28.1,
-        "card_power": "1.090"
-      },
-      "OF": {
-        "card_name": "Julio Rodríguez 2026-27 • Limited 211/1000",
-        "player_slug": "julio-rodriguez-20001229",
-        "player_name": "Julio Rodríguez",
-        "proj_score_eff": 29.9,
-        "proj_score": 21.6,
-        "card_power": "1.090"
-      },
-      "Flex": {
-        "card_name": "Randy Arozarena 2026-27 • Limited 80/1000",
-        "player_slug": "randy-arozarena-19950228",
-        "player_name": "Randy Arozarena",
-        "proj_score_eff": 29.3,
-        "proj_score": 31.8,
-        "card_power": "1.100"
-      },
-      "Libre": {
-        "card_name": "Brice Turang 2026-27 • Limited 191/1000",
-        "player_slug": "brice-turang-19991121",
-        "player_name": "Brice Turang",
-        "proj_score_eff": 27.3,
-        "proj_score": 27.1,
-        "card_power": "1.090"
-      }
-    }
-  },
-  {
-    "lineup_id": "cb761036-0b43-4c01-8627-48ba09860a90",
-    "saved_at": "2026-05-18T20:22:04.308526+00:00",
-    "gw_int": 134,
-    "manager": "Ezox",
-    "mode": "Hot Streak",
-    "rarity": "limited",
-    "score_src": "Sorare GW+",
-    "slots": {
-      "SP": {
-        "card_name": "Bryan Woo 2025-26 • Limited 461/1000",
-        "player_slug": "bryan-woo-20000130",
-        "player_name": "Bryan Woo",
-        "proj_score_eff": 23.6,
-        "proj_score": 19.75,
-        "card_power": "1.040"
-      },
-      "RP": {
-        "card_name": "Pete Fairbanks 2026-27 • Limited 78/1000",
-        "player_slug": "pete-fairbanks-19931216",
-        "player_name": "Pete Fairbanks",
-        "proj_score_eff": 38.0,
-        "proj_score": 13.1,
-        "card_power": "1.090"
-      },
-      "CI": {
-        "card_name": "Josh Naylor 2026-27 • Limited 238/1000",
-        "player_slug": "josh-naylor-19970622",
-        "player_name": "Josh Naylor",
-        "proj_score_eff": 27.0,
-        "proj_score": 23.3,
-        "card_power": "1.080"
-      },
-      "MI": {
-        "card_name": "Nasim Nuñez 2026-27 • Limited 101/1000",
-        "player_slug": "nasim-nunez-20000818",
-        "player_name": "Nasim Nuñez",
-        "proj_score_eff": 24.1,
-        "proj_score": 20.7,
-        "card_power": "1.060"
-      },
-      "OF": {
-        "card_name": "Pete Crow-Armstrong 2026-27 • Limited 99/1000",
-        "player_slug": "pete-crow-armstrong-20020325",
-        "player_name": "Pete Crow-Armstrong",
-        "proj_score_eff": 25.2,
-        "proj_score": 19.3,
-        "card_power": "1.090"
-      },
-      "Flex": {
-        "card_name": "Spencer Torkelson 2026-27 • Limited 13/1000",
-        "player_slug": "spencer-torkelson-19990826",
-        "player_name": "Spencer Torkelson",
-        "proj_score_eff": 26.4,
-        "proj_score": 21.3,
-        "card_power": "1.090"
-      },
-      "Libre": {
-        "card_name": "Josh Jung 2026-27 • Limited 189/1000",
-        "player_slug": "josh-jung-19980212",
-        "player_name": "Josh Jung",
-        "proj_score_eff": 26.2,
-        "proj_score": 20.3,
-        "card_power": "1.060"
-      }
-    },
-    "suggested_slots": {
-      "SP": {
-        "card_name": "Bryan Woo 2025-26 • Limited 461/1000",
-        "player_slug": "bryan-woo-20000130",
-        "player_name": "Bryan Woo",
-        "proj_score_eff": 23.6,
-        "proj_score": 19.75,
-        "card_power": "1.040"
-      },
-      "RP": {
-        "card_name": "Pete Fairbanks 2026-27 • Limited 78/1000",
-        "player_slug": "pete-fairbanks-19931216",
-        "player_name": "Pete Fairbanks",
-        "proj_score_eff": 38.0,
-        "proj_score": 13.1,
-        "card_power": "1.090"
-      },
-      "CI": {
-        "card_name": "Josh Naylor 2026-27 • Limited 238/1000",
-        "player_slug": "josh-naylor-19970622",
-        "player_name": "Josh Naylor",
-        "proj_score_eff": 27.0,
-        "proj_score": 23.3,
-        "card_power": "1.080"
-      },
-      "MI": {
-        "card_name": "Nasim Nuñez 2026-27 • Limited 101/1000",
-        "player_slug": "nasim-nunez-20000818",
-        "player_name": "Nasim Nuñez",
-        "proj_score_eff": 24.1,
-        "proj_score": 20.7,
-        "card_power": "1.060"
-      },
-      "OF": {
-        "card_name": "Pete Crow-Armstrong 2026-27 • Limited 99/1000",
-        "player_slug": "pete-crow-armstrong-20020325",
-        "player_name": "Pete Crow-Armstrong",
-        "proj_score_eff": 25.2,
-        "proj_score": 19.3,
-        "card_power": "1.090"
-      },
-      "Flex": {
-        "card_name": "Spencer Torkelson 2026-27 • Limited 13/1000",
-        "player_slug": "spencer-torkelson-19990826",
-        "player_name": "Spencer Torkelson",
-        "proj_score_eff": 26.4,
-        "proj_score": 21.3,
-        "card_power": "1.090"
-      },
-      "Libre": {
-        "card_name": "Josh Jung 2026-27 • Limited 189/1000",
-        "player_slug": "josh-jung-19980212",
-        "player_name": "Josh Jung",
-        "proj_score_eff": 26.2,
-        "proj_score": 20.3,
-        "card_power": "1.060"
-      }
-    }
-  },
-  {
-    "lineup_id": "3320548c-2c27-4cfd-b8aa-74c16ce743cf",
-    "saved_at": "2026-05-18T20:23:02.144836+00:00",
-    "gw_int": 134,
-    "manager": "Ezox",
-    "mode": "Champions",
-    "rarity": "limited",
-    "score_src": "Sorare GW+",
-    "slots": {
-      "SP": {
-        "card_name": "Nolan McLean 2026-27 • Limited 259/1000",
-        "player_slug": "nolan-mclean-20010724",
-        "player_name": "Nolan McLean",
-        "proj_score_eff": 23.0,
-        "proj_score": 26.2,
-        "card_power": "1.060"
-      },
-      "RP": {
-        "card_name": "Pete Fairbanks 2025-26 • Limited 155/1000",
-        "player_slug": "pete-fairbanks-19931216",
-        "player_name": "Pete Fairbanks",
-        "proj_score_eff": 36.6,
-        "proj_score": 13.1,
-        "card_power": "1.050"
-      },
-      "CI": {
-        "card_name": "Kyle Schwarber 2026-27 • Limited 286/1000",
-        "player_slug": "kyle-schwarber-19930305",
-        "player_name": "Kyle Schwarber",
-        "proj_score_eff": 25.0,
-        "proj_score": 33.1,
-        "card_power": "1.080"
-      },
-      "MI": {
-        "card_name": "Jeff McNeil 2026-27 • Limited 55/1000",
-        "player_slug": "jeff-mcneil-19920408",
-        "player_name": "Jeff McNeil",
-        "proj_score_eff": 23.3,
-        "proj_score": 20.1,
-        "card_power": "1.070"
-      },
-      "OF": {
-        "card_name": "Taylor Ward 2026-27 • Limited 253/1000",
-        "player_slug": "taylor-ward-19931214",
-        "player_name": "Taylor Ward",
-        "proj_score_eff": 24.3,
-        "proj_score": 20.5,
-        "card_power": "1.070"
-      },
-      "Flex": {
-        "card_name": "Chandler Simpson 2026-27 • Limited 270/1000",
-        "player_slug": "chandler-simpson-20001118",
-        "player_name": "Chandler Simpson",
-        "proj_score_eff": 23.3,
-        "proj_score": 21.1,
-        "card_power": "1.060"
-      },
-      "Libre": {
-        "card_name": "Fernando Tatis Jr. 2026-27 • Limited 167/1000",
-        "player_slug": "fernando-tatis-jr-19990102",
-        "player_name": "Fernando Tatis Jr.",
-        "proj_score_eff": 23.0,
-        "proj_score": 10.2,
-        "card_power": "1.090"
-      }
-    },
-    "suggested_slots": {
-      "SP": {
-        "card_name": "Nolan McLean 2026-27 • Limited 259/1000",
-        "player_slug": "nolan-mclean-20010724",
-        "player_name": "Nolan McLean",
-        "proj_score_eff": 23.0,
-        "proj_score": 26.2,
-        "card_power": "1.060"
-      },
-      "RP": {
-        "card_name": "Pete Fairbanks 2025-26 • Limited 155/1000",
-        "player_slug": "pete-fairbanks-19931216",
-        "player_name": "Pete Fairbanks",
-        "proj_score_eff": 36.6,
-        "proj_score": 13.1,
-        "card_power": "1.050"
-      },
-      "CI": {
-        "card_name": "Kyle Schwarber 2026-27 • Limited 286/1000",
-        "player_slug": "kyle-schwarber-19930305",
-        "player_name": "Kyle Schwarber",
-        "proj_score_eff": 25.0,
-        "proj_score": 33.1,
-        "card_power": "1.080"
-      },
-      "MI": {
-        "card_name": "Jeff McNeil 2026-27 • Limited 55/1000",
-        "player_slug": "jeff-mcneil-19920408",
-        "player_name": "Jeff McNeil",
-        "proj_score_eff": 23.3,
-        "proj_score": 20.1,
-        "card_power": "1.070"
-      },
-      "OF": {
-        "card_name": "Taylor Ward 2026-27 • Limited 253/1000",
-        "player_slug": "taylor-ward-19931214",
-        "player_name": "Taylor Ward",
-        "proj_score_eff": 24.3,
-        "proj_score": 20.5,
-        "card_power": "1.070"
-      },
-      "Flex": {
-        "card_name": "Chandler Simpson 2026-27 • Limited 270/1000",
-        "player_slug": "chandler-simpson-20001118",
-        "player_name": "Chandler Simpson",
-        "proj_score_eff": 23.3,
-        "proj_score": 21.1,
-        "card_power": "1.060"
-      },
-      "Libre": {
-        "card_name": "Fernando Tatis Jr. 2026-27 • Limited 167/1000",
-        "player_slug": "fernando-tatis-jr-19990102",
-        "player_name": "Fernando Tatis Jr.",
-        "proj_score_eff": 23.0,
-        "proj_score": 10.2,
-        "card_power": "1.090"
-      }
-    }
-  },
-  {
-    "lineup_id": "f37e38aa-32d5-442f-8209-9379d17cdf33",
-    "saved_at": "2026-05-18T20:23:59.476684+00:00",
-    "gw_int": 134,
-    "manager": "Ezox",
-    "mode": "Champions",
-    "rarity": "limited",
-    "score_src": "Sorare GW+",
-    "slots": {
-      "SP": {
-        "card_name": "Spencer Strider 2022-23 • Limited 51/5000",
-        "player_slug": "spencer-strider-19981028",
-        "player_name": "Spencer Strider",
-        "proj_score_eff": 22.7,
-        "proj_score": 18.5,
-        "card_power": "1.080"
-      },
-      "RP": {
-        "card_name": "Will Vest 2026-27 • Limited 60/1000",
-        "player_slug": "will-vest-19950606",
-        "player_name": "Will Vest",
-        "proj_score_eff": 35.6,
-        "proj_score": 12.2,
-        "card_power": "1.070"
-      },
-      "CI": {
-        "card_name": "Vinnie Pasquantino 2026-27 • Limited 129/1000",
-        "player_slug": "vinnie-pasquantino-19971010",
-        "player_name": "Vinnie Pasquantino",
-        "proj_score_eff": 21.5,
-        "proj_score": 21.9,
-        "card_power": "1.080"
-      },
-      "MI": {
-        "card_name": "Dansby Swanson 2026-27 • Limited 45/1000",
-        "player_slug": "dansby-swanson-19940211",
-        "player_name": "Dansby Swanson",
-        "proj_score_eff": 20.9,
-        "proj_score": 19.1,
-        "card_power": "1.080"
-      },
-      "OF": {
-        "card_name": "Austin Martin 2026-27 • Limited 67/1000",
-        "player_slug": "austin-martin-19990323",
-        "player_name": "Austin Martin",
-        "proj_score_eff": 20.4,
-        "proj_score": 17.6,
-        "card_power": "1.050"
-      },
-      "Flex": {
-        "card_name": "Nick Gonzales 2026-27 • Limited 99/1000",
-        "player_slug": "nick-gonzales-19990527",
-        "player_name": "Nick Gonzales",
-        "proj_score_eff": 20.3,
-        "proj_score": 16.7,
-        "card_power": "1.060"
-      },
-      "Libre": {
-        "card_name": "Ivan Herrera 2026-27 • Limited 138/1000",
-        "player_slug": "ivan-herrera-20000601",
-        "player_name": "Ivan Herrera",
-        "proj_score_eff": 19.9,
-        "proj_score": 20.5,
-        "card_power": "1.060"
-      }
-    },
-    "suggested_slots": {
-      "SP": {
-        "card_name": "Spencer Strider 2022-23 • Limited 51/5000",
-        "player_slug": "spencer-strider-19981028",
-        "player_name": "Spencer Strider",
-        "proj_score_eff": 22.7,
-        "proj_score": 18.5,
-        "card_power": "1.080"
-      },
-      "RP": {
-        "card_name": "Will Vest 2026-27 • Limited 60/1000",
-        "player_slug": "will-vest-19950606",
-        "player_name": "Will Vest",
-        "proj_score_eff": 35.6,
-        "proj_score": 12.2,
-        "card_power": "1.070"
-      },
-      "CI": {
-        "card_name": "Vinnie Pasquantino 2026-27 • Limited 129/1000",
-        "player_slug": "vinnie-pasquantino-19971010",
-        "player_name": "Vinnie Pasquantino",
-        "proj_score_eff": 21.5,
-        "proj_score": 21.9,
-        "card_power": "1.080"
-      },
-      "MI": {
-        "card_name": "Dansby Swanson 2026-27 • Limited 45/1000",
-        "player_slug": "dansby-swanson-19940211",
-        "player_name": "Dansby Swanson",
-        "proj_score_eff": 20.9,
-        "proj_score": 19.1,
-        "card_power": "1.080"
-      },
-      "OF": {
-        "card_name": "Austin Martin 2026-27 • Limited 67/1000",
-        "player_slug": "austin-martin-19990323",
-        "player_name": "Austin Martin",
-        "proj_score_eff": 20.4,
-        "proj_score": 17.6,
-        "card_power": "1.050"
-      },
-      "Flex": {
-        "card_name": "Nick Gonzales 2026-27 • Limited 99/1000",
-        "player_slug": "nick-gonzales-19990527",
-        "player_name": "Nick Gonzales",
-        "proj_score_eff": 20.3,
-        "proj_score": 16.7,
-        "card_power": "1.060"
-      },
-      "Libre": {
-        "card_name": "Ivan Herrera 2026-27 • Limited 138/1000",
-        "player_slug": "ivan-herrera-20000601",
-        "player_name": "Ivan Herrera",
-        "proj_score_eff": 19.9,
-        "proj_score": 20.5,
-        "card_power": "1.060"
-      }
-    }
-  },
-  {
-    "lineup_id": "14c8f5da-5e2d-4557-b424-734c8f3a950b",
-    "saved_at": "2026-05-18T20:29:36.998100+00:00",
-    "gw_int": 134,
-    "manager": "Ezox",
-    "mode": "Challenger",
-    "rarity": "limited",
-    "score_src": "Sorare GW+",
-    "slots": {
-      "SP": {
-        "card_name": "Jesús Luzardo 2025-26 • Limited 367/1000",
-        "player_slug": "jesus-luzardo-19970930",
-        "player_name": "Jesús Luzardo",
-        "proj_score_eff": 22.0,
-        "proj_score": 22.0,
-        "card_power": "1.030"
-      },
-      "RP": {
-        "card_name": "Jhoan Duran 2025-26 • Limited 116/1000",
-        "player_slug": "jhoan-duran-19980108",
-        "player_name": "Jhoan Duran",
-        "proj_score_eff": 31.4,
-        "proj_score": 14.7,
-        "card_power": "1.060"
-      },
-      "CI": {
-        "card_name": "Shohei Ohtani 2025-26 • Limited 402/1000",
-        "player_slug": "shohei-ohtani-19940705",
-        "player_name": "Shohei Ohtani",
-        "proj_score_eff": 24.2,
-        "proj_score": 20.4,
-        "card_power": "1.070"
-      },
-      "MI": {
-        "card_name": "Ketel Marte 2025-26 • Limited 232/1000",
-        "player_slug": "ketel-marte-19931012",
-        "player_name": "Ketel Marte",
-        "proj_score_eff": 42.6,
-        "proj_score": 20.4,
-        "card_power": "1.060"
-      },
-      "OF": {
-        "card_name": "Oneil Cruz 2025-26 • Limited 287/1000",
-        "player_slug": "oneil-cruz-19981004",
-        "player_name": "Oneil Cruz",
-        "proj_score_eff": 27.3,
-        "proj_score": 26.2,
-        "card_power": "1.050"
-      },
-      "Flex": {
-        "card_name": "Nolan Arenado 2022-23 • Limited 19/5000",
-        "player_slug": "nolan-arenado-19910416",
-        "player_name": "Nolan Arenado",
-        "proj_score_eff": 33.0,
-        "proj_score": 28.0,
-        "card_power": "1.090"
-      },
-      "Libre": {
-        "card_name": "Geraldo Perdomo 2025-26 • Limited 165/1000",
-        "player_slug": "geraldo-perdomo-19991022",
-        "player_name": "Geraldo Perdomo",
-        "proj_score_eff": 36.4,
-        "proj_score": 28.7,
-        "card_power": "1.060"
-      }
-    },
-    "suggested_slots": {
-      "SP": {
-        "card_name": "Jesús Luzardo 2025-26 • Limited 367/1000",
-        "player_slug": "jesus-luzardo-19970930",
-        "player_name": "Jesús Luzardo",
-        "proj_score_eff": 22.0,
-        "proj_score": 22.0,
-        "card_power": "1.030"
-      },
-      "RP": {
-        "card_name": "Jhoan Duran 2025-26 • Limited 116/1000",
-        "player_slug": "jhoan-duran-19980108",
-        "player_name": "Jhoan Duran",
-        "proj_score_eff": 31.4,
-        "proj_score": 14.7,
-        "card_power": "1.060"
-      },
-      "CI": {
-        "card_name": "José Ramírez 2025-26 • Limited 449/1000",
-        "player_slug": "jose-ramirez-19920917",
-        "player_name": "José Ramírez",
-        "proj_score_eff": 42.0,
-        "proj_score": 32.4,
-        "card_power": "1.060"
-      },
-      "MI": {
-        "card_name": "Ketel Marte 2025-26 • Limited 232/1000",
-        "player_slug": "ketel-marte-19931012",
-        "player_name": "Ketel Marte",
-        "proj_score_eff": 42.6,
-        "proj_score": 20.4,
-        "card_power": "1.060"
-      },
-      "OF": {
-        "card_name": "Yordan Alvarez 2023-24 • Limited 39/5000",
-        "player_slug": "yordan-alvarez-19970627",
-        "player_name": "Yordan Alvarez",
-        "proj_score_eff": 35.5,
-        "proj_score": 24.5,
-        "card_power": "1.070"
-      },
-      "Flex": {
-        "card_name": "Ben Rice 2025-26 • Limited 358/1000",
-        "player_slug": "ben-rice-19990222",
-        "player_name": "Ben Rice",
-        "proj_score_eff": 38.7,
-        "proj_score": 38.2,
-        "card_power": "1.050"
-      },
-      "Libre": {
-        "card_name": "Geraldo Perdomo 2025-26 • Limited 165/1000",
-        "player_slug": "geraldo-perdomo-19991022",
-        "player_name": "Geraldo Perdomo",
-        "proj_score_eff": 36.4,
-        "proj_score": 28.7,
-        "card_power": "1.060"
-      }
-    }
-  },
-  {
-    "lineup_id": "bfe30a3a-7774-416a-af32-29cc6e9a902a",
-    "saved_at": "2026-05-18T20:32:15.285664+00:00",
-    "gw_int": 134,
-    "manager": "Ezox",
-    "mode": "Challenger",
-    "rarity": "limited",
-    "score_src": "Sorare GW+",
-    "slots": {
-      "SP": {
-        "card_name": "José Soriano 2026-27 • Limited 134/1000",
-        "player_slug": "jose-soriano-19981020",
-        "player_name": "José Soriano",
-        "proj_score_eff": 21.3,
-        "proj_score": 20.4,
+        "picture_url": "https://assets.sorare.com/card/d19b99cc-305e-47e5-95f3-33c8add2253b/picture/tinified-74eda18bb7fa38342035469d59886bd9.png",
+        "proj_score_eff": 27.8,
+        "proj_score": 25.9,
         "card_power": "1.090"
       },
       "RP": {
         "card_name": "Aroldis Chapman 2026-27 • Limited 202/1000",
         "player_slug": "aroldis-chapman-19880228",
         "player_name": "Aroldis Chapman",
-        "proj_score_eff": 30.0,
-        "proj_score": 16.85,
+        "picture_url": "https://assets.sorare.com/card/efff5529-ce92-4f6a-9d90-bc4044651e59/picture/tinified-b071c1cd158dae797fe63d3d360fa5ad.png",
+        "proj_score_eff": 29.8,
+        "proj_score": 16.3,
         "card_power": "1.090"
       },
       "CI": {
-        "card_name": "José Ramírez 2025-26 • Limited 449/1000",
+        "card_name": "José Ramírez 2026-27 • Limited 168/1000",
         "player_slug": "jose-ramirez-19920917",
         "player_name": "José Ramírez",
-        "proj_score_eff": 42.0,
-        "proj_score": 32.4,
-        "card_power": "1.060"
-      },
-      "MI": {
-        "card_name": "Jazz Chisholm Jr. 2025-26 • Limited 108/1000",
-        "player_slug": "jazz-chisholm-jr-19980201",
-        "player_name": "Jazz Chisholm Jr.",
-        "proj_score_eff": 31.2,
-        "proj_score": 18.4,
-        "card_power": "1.070"
+        "picture_url": "https://assets.sorare.com/card/23e13ae5-eaf1-47dc-b416-65133a5d5fdf/picture/tinified-14eca151cf630a471378225f1531d0d0.png",
+        "proj_score_eff": 38.5,
+        "proj_score": 23.5,
+        "card_power": "1.100"
       },
       "OF": {
-        "card_name": "Yordan Alvarez 2023-24 • Limited 39/5000",
-        "player_slug": "yordan-alvarez-19970627",
-        "player_name": "Yordan Alvarez",
-        "proj_score_eff": 35.5,
-        "proj_score": 24.5,
-        "card_power": "1.070"
-      },
-      "Flex": {
-        "card_name": "Ben Rice 2025-26 • Limited 358/1000",
-        "player_slug": "ben-rice-19990222",
-        "player_name": "Ben Rice",
-        "proj_score_eff": 38.7,
-        "proj_score": 38.2,
-        "card_power": "1.050"
-      },
-      "Libre": {
-        "card_name": "Cody Bellinger 2025-26 • Limited 440/1000",
-        "player_slug": "cody-bellinger-19950713",
-        "player_name": "Cody Bellinger",
-        "proj_score_eff": 35.1,
-        "proj_score": 36.0,
-        "card_power": "1.050"
-      }
-    },
-    "suggested_slots": {
-      "SP": {
-        "card_name": "José Soriano 2026-27 • Limited 134/1000",
-        "player_slug": "jose-soriano-19981020",
-        "player_name": "José Soriano",
-        "proj_score_eff": 21.3,
-        "proj_score": 20.4,
-        "card_power": "1.090"
-      },
-      "RP": {
-        "card_name": "Aroldis Chapman 2026-27 • Limited 202/1000",
-        "player_slug": "aroldis-chapman-19880228",
-        "player_name": "Aroldis Chapman",
-        "proj_score_eff": 30.0,
-        "proj_score": 16.85,
-        "card_power": "1.090"
-      },
-      "CI": {
-        "card_name": "José Ramírez 2025-26 • Limited 449/1000",
-        "player_slug": "jose-ramirez-19920917",
-        "player_name": "José Ramírez",
-        "proj_score_eff": 42.0,
-        "proj_score": 32.4,
+        "card_name": "Byron Buxton 2026-27 • Limited 310/1000",
+        "player_slug": "byron-buxton-19931218",
+        "player_name": "Byron Buxton",
+        "picture_url": "https://assets.sorare.com/card/855e3c20-6c04-40d7-8f87-3e5e5d410d32/picture/tinified-553553a97b48a5f04191da5190d41086.png",
+        "proj_score_eff": 47.9,
+        "proj_score": 39.2,
         "card_power": "1.060"
       },
-      "MI": {
-        "card_name": "Jazz Chisholm Jr. 2025-26 • Limited 108/1000",
-        "player_slug": "jazz-chisholm-jr-19980201",
-        "player_name": "Jazz Chisholm Jr.",
-        "proj_score_eff": 31.2,
-        "proj_score": 18.4,
-        "card_power": "1.070"
-      },
-      "OF": {
-        "card_name": "Yordan Alvarez 2023-24 • Limited 39/5000",
-        "player_slug": "yordan-alvarez-19970627",
-        "player_name": "Yordan Alvarez",
-        "proj_score_eff": 35.5,
-        "proj_score": 24.5,
-        "card_power": "1.070"
-      },
       "Flex": {
-        "card_name": "Ben Rice 2025-26 • Limited 358/1000",
-        "player_slug": "ben-rice-19990222",
-        "player_name": "Ben Rice",
-        "proj_score_eff": 38.7,
-        "proj_score": 38.2,
-        "card_power": "1.050"
-      },
-      "Libre": {
-        "card_name": "Cody Bellinger 2025-26 • Limited 440/1000",
-        "player_slug": "cody-bellinger-19950713",
-        "player_name": "Cody Bellinger",
-        "proj_score_eff": 35.1,
-        "proj_score": 36.0,
-        "card_power": "1.050"
-      }
-    }
-  },
-  {
-    "lineup_id": "d3df989a-75aa-4a48-8eee-2d7b91bd8a2f",
-    "saved_at": "2026-05-18T20:34:11.927182+00:00",
-    "gw_int": 134,
-    "manager": "Ezox",
-    "mode": "Challenger",
-    "rarity": "limited",
-    "score_src": "Sorare GW+",
-    "slots": {
-      "SP": {
-        "card_name": "Ranger Suárez 2026-27 • Limited 97/1000",
-        "player_slug": "ranger-suarez-19950826",
-        "player_name": "Ranger Suarez",
-        "proj_score_eff": 19.4,
-        "proj_score": 21.6,
-        "card_power": "1.090"
-      },
-      "RP": {
-        "card_name": "Matt Festa 2022-23 • Limited 160/5000",
-        "player_slug": "matt-festa-19930311",
-        "player_name": "Matt Festa",
-        "proj_score_eff": 29.9,
-        "proj_score": 9.9,
-        "card_power": "1.050"
-      },
-      "CI": {
-        "card_name": "Bryce Harper 2025-26 • Limited 128/1000",
-        "player_slug": "bryce-harper-19921016",
-        "player_name": "Bryce Harper",
-        "proj_score_eff": 28.4,
+        "card_name": "Taylor Ward 2026-27 • Limited 253/1000",
+        "player_slug": "taylor-ward-19931214",
+        "player_name": "Taylor Ward",
+        "picture_url": "https://assets.sorare.com/card/dd60b300-1019-42b8-b00a-e78049bd47d6/picture/tinified-fb928a43519c6b1d28cdf4a850aaa7cc.png",
+        "proj_score_eff": 36.8,
         "proj_score": 25.9,
-        "card_power": "1.070"
-      },
-      "MI": {
-        "card_name": "Marcus Semien 2022-23 • Limited 112/5000",
-        "player_slug": "marcus-semien-19900917",
-        "player_name": "Marcus Semien",
-        "proj_score_eff": 29.1,
-        "proj_score": 22.0,
-        "card_power": "1.050"
-      },
-      "OF": {
-        "card_name": "Julio Rodríguez 2022-23 • Limited 19/5000",
-        "player_slug": "julio-rodriguez-20001229",
-        "player_name": "Julio Rodríguez",
-        "proj_score_eff": 29.9,
-        "proj_score": 21.6,
-        "card_power": "1.090"
-      },
-      "Flex": {
-        "card_name": "Trea Turner 2025-26 • Limited 520/1000",
-        "player_slug": "trea-turner-19930630",
-        "player_name": "Trea Turner",
-        "proj_score_eff": 28.4,
-        "proj_score": 21.3,
-        "card_power": "1.040"
-      },
-      "Libre": {
-        "card_name": "Rafael Devers 2025-26 • Limited 390/1000",
-        "player_slug": "rafael-devers-19961024",
-        "player_name": "Rafael Devers",
-        "proj_score_eff": 28.1,
-        "proj_score": 18.9,
-        "card_power": "1.060"
-      }
-    },
-    "suggested_slots": {
-      "SP": {
-        "card_name": "Kris Bubic 2025-26 • Limited 194/1000",
-        "player_slug": "kris-bubic-19970819",
-        "player_name": "Kris Bubic",
-        "proj_score_eff": 20.9,
-        "proj_score": 19.25,
-        "card_power": "1.030"
-      },
-      "RP": {
-        "card_name": "Matt Festa 2022-23 • Limited 160/5000",
-        "player_slug": "matt-festa-19930311",
-        "player_name": "Matt Festa",
-        "proj_score_eff": 29.9,
-        "proj_score": 9.9,
-        "card_power": "1.050"
-      },
-      "CI": {
-        "card_name": "Bryce Harper 2025-26 • Limited 128/1000",
-        "player_slug": "bryce-harper-19921016",
-        "player_name": "Bryce Harper",
-        "proj_score_eff": 28.4,
-        "proj_score": 25.9,
-        "card_power": "1.070"
-      },
-      "MI": {
-        "card_name": "Marcus Semien 2022-23 • Limited 112/5000",
-        "player_slug": "marcus-semien-19900917",
-        "player_name": "Marcus Semien",
-        "proj_score_eff": 29.1,
-        "proj_score": 22.0,
-        "card_power": "1.050"
-      },
-      "OF": {
-        "card_name": "Julio Rodríguez 2022-23 • Limited 19/5000",
-        "player_slug": "julio-rodriguez-20001229",
-        "player_name": "Julio Rodríguez",
-        "proj_score_eff": 29.9,
-        "proj_score": 21.6,
-        "card_power": "1.090"
-      },
-      "Flex": {
-        "card_name": "Trea Turner 2025-26 • Limited 520/1000",
-        "player_slug": "trea-turner-19930630",
-        "player_name": "Trea Turner",
-        "proj_score_eff": 28.4,
-        "proj_score": 21.3,
-        "card_power": "1.040"
-      },
-      "Libre": {
-        "card_name": "Rafael Devers 2025-26 • Limited 390/1000",
-        "player_slug": "rafael-devers-19961024",
-        "player_name": "Rafael Devers",
-        "proj_score_eff": 28.1,
-        "proj_score": 18.9,
-        "card_power": "1.060"
-      }
-    }
-  },
-  {
-    "lineup_id": "62424cce-7475-4458-97ca-fa2219d34793",
-    "saved_at": "2026-05-18T20:35:12.613616+00:00",
-    "gw_int": 134,
-    "manager": "Ezox",
-    "mode": "Challenger",
-    "rarity": "limited",
-    "score_src": "Sorare GW+",
-    "slots": {
-      "SP": {
-        "card_name": "Ranger Suárez 2022-23 • Limited 20/5000",
-        "player_slug": "ranger-suarez-19950826",
-        "player_name": "Ranger Suarez",
-        "proj_score_eff": 18.6,
-        "proj_score": 21.6,
-        "card_power": "1.050"
-      },
-      "RP": {
-        "card_name": "Aroldis Chapman 2024-25 • Limited 68/1000",
-        "player_slug": "aroldis-chapman-19880228",
-        "player_name": "Aroldis Chapman",
-        "proj_score_eff": 28.3,
-        "proj_score": 16.85,
-        "card_power": "1.030"
-      },
-      "CI": {
-        "card_name": "Max Muncy 2025-26 • Limited 51/1000",
-        "player_slug": "max-muncy-19900825",
-        "player_name": "Max Muncy",
-        "proj_score_eff": 27.5,
-        "proj_score": 24.2,
-        "card_power": "1.050"
-      },
-      "MI": {
-        "card_name": "Marcus Semien 2025-26 • Limited 84/1000",
-        "player_slug": "marcus-semien-19900917",
-        "player_name": "Marcus Semien",
-        "proj_score_eff": 28.6,
-        "proj_score": 22.0,
-        "card_power": "1.030"
-      },
-      "OF": {
-        "card_name": "Julio Rodríguez 2025-26 • Limited 299/1000",
-        "player_slug": "julio-rodriguez-20001229",
-        "player_name": "Julio Rodríguez",
-        "proj_score_eff": 29.6,
-        "proj_score": 21.6,
         "card_power": "1.080"
       },
-      "Flex": {
-        "card_name": "Anthony Volpe 2025-26 • Limited 156/1000",
-        "player_slug": "anthony-volpe-20010428",
-        "player_name": "Anthony Volpe",
-        "proj_score_eff": 27.0,
-        "proj_score": 17.9,
+      "Libre": {
+        "card_name": "Aaron Judge 2026-27 • Limited 470/1000",
+        "player_slug": "aaron-judge-19920426",
+        "player_name": "Aaron Judge",
+        "picture_url": "https://assets.sorare.com/card/f5ca8283-0eef-402d-93f1-3deea0d5b512/picture/tinified-53e885b321d5d35146cf6c17d4ef930e.png",
+        "proj_score_eff": 34.7,
+        "proj_score": 27.3,
+        "card_power": "1.070"
+      }
+    },
+    "suggested_slots_auto": {
+      "RP": {
+        "card_name": "Spencer Strider 2022-23 • Limited 51/5000",
+        "player_slug": "spencer-strider-19981028",
+        "player_name": "Spencer Strider",
+        "picture_url": "https://assets.sorare.com/card/59f8f295-c197-4783-baf6-86b1532ae3a7/picture/tinified-02152ba346e33429c0ae7f327b04e519.png",
+        "proj_score_eff": 22.6,
+        "proj_score": 20.9,
+        "card_power": "1.080"
+      },
+      "SP": {
+        "card_name": "Cristopher Sánchez 2026-27 • Limited 170/1000",
+        "player_slug": "cristopher-sanchez-19961212",
+        "player_name": "Cristopher Sánchez",
+        "picture_url": "https://assets.sorare.com/card/5bfb46a3-5d66-485e-bcc7-06b1884cd1ab/picture/tinified-5bc0b210e6dd5cc12ffefca4cbc9a835.png",
+        "proj_score_eff": 29.2,
+        "proj_score": 26.8,
+        "card_power": "1.090"
+      },
+      "CI": {
+        "card_name": "Kyle Schwarber 2026-27 • Limited 286/1000",
+        "player_slug": "kyle-schwarber-19930305",
+        "player_name": "Kyle Schwarber",
+        "picture_url": "https://assets.sorare.com/card/0aec2084-1f77-4b13-b28c-0405b7662e8a/picture/tinified-ac27cfd5abac5b3482be7741ea683f04.png",
+        "proj_score_eff": 31.2,
+        "proj_score": 28.9,
+        "card_power": "1.080"
+      },
+      "MI": {
+        "card_name": "Elly De La Cruz 2026-27 • Limited 9/1000",
+        "player_slug": "elly-de-la-cruz-20020111",
+        "player_name": "Elly De La Cruz",
+        "picture_url": "https://assets.sorare.com/card/59fc3c50-66a4-4784-9d22-ffdb4dbcad65/picture/tinified-4ba66bfb247521c8680239e1b747e2bc.png",
+        "proj_score_eff": 30.5,
+        "proj_score": 27.7,
+        "card_power": "1.100"
+      },
+      "OF": {
+        "card_name": "Byron Buxton 2026-27 • Limited 310/1000",
+        "player_slug": "byron-buxton-19931218",
+        "player_name": "Byron Buxton",
+        "picture_url": "https://assets.sorare.com/card/855e3c20-6c04-40d7-8f87-3e5e5d410d32/picture/tinified-553553a97b48a5f04191da5190d41086.png",
+        "proj_score_eff": 41.6,
+        "proj_score": 39.2,
         "card_power": "1.060"
       },
+      "Flex": {
+        "card_name": "Cody Bellinger 2026-27 • Limited 369/1000",
+        "player_slug": "cody-bellinger-19950713",
+        "player_name": "Cody Bellinger",
+        "picture_url": "https://assets.sorare.com/card/aa8bab18-0fc3-4f65-aceb-5b891d168fcf/picture/tinified-8fb4d515c1b41f9c530858be1b563301.png",
+        "proj_score_eff": 30.6,
+        "proj_score": 28.6,
+        "card_power": "1.070"
+      },
       "Libre": {
+        "card_name": "JJ Bleday 2026-27 • Limited 107/1000",
+        "player_slug": "jj-bleday-19971110",
+        "player_name": "JJ Bleday",
+        "picture_url": "https://assets.sorare.com/card/9e818c92-9302-47cb-9893-82a202c8993b/picture/tinified-8f003d8cfe45493ddd7eb0305026c326.png",
+        "proj_score_eff": 29.8,
+        "proj_score": 28.1,
+        "card_power": "1.060"
+      }
+    },
+    "suggested_slots_sorare": {
+      "MI": {
         "card_name": "Brandon Lowe 2025-26 • Limited 263/1000",
         "player_slug": "brandon-lowe-19940706",
         "player_name": "Brandon Lowe",
-        "proj_score_eff": 26.3,
-        "proj_score": 40.8,
+        "picture_url": "https://assets.sorare.com/card/c6c715d7-e8c9-4a72-b23c-398d73a1461d/picture/tinified-af9c7a7bc022e13bc71fb3a87d1b92b5.png",
+        "proj_score_eff": 34.1,
+        "proj_score": 29.0,
         "card_power": "1.040"
-      }
-    },
-    "suggested_slots": {
+      },
       "SP": {
-        "card_name": "Kris Bubic 2025-26 • Limited 194/1000",
-        "player_slug": "kris-bubic-19970819",
-        "player_name": "Kris Bubic",
-        "proj_score_eff": 20.9,
-        "proj_score": 19.25,
-        "card_power": "1.030"
+        "card_name": "Chris Sale 2026-27 • Limited 136/1000",
+        "player_slug": "chris-sale-19890330",
+        "player_name": "Chris Sale",
+        "picture_url": "https://assets.sorare.com/card/d19b99cc-305e-47e5-95f3-33c8add2253b/picture/tinified-74eda18bb7fa38342035469d59886bd9.png",
+        "proj_score_eff": 27.8,
+        "proj_score": 25.9,
+        "card_power": "1.090"
       },
       "RP": {
-        "card_name": "Aroldis Chapman 2024-25 • Limited 68/1000",
-        "player_slug": "aroldis-chapman-19880228",
-        "player_name": "Aroldis Chapman",
-        "proj_score_eff": 28.3,
-        "proj_score": 16.85,
-        "card_power": "1.030"
-      },
-      "CI": {
-        "card_name": "Max Muncy 2025-26 • Limited 51/1000",
-        "player_slug": "max-muncy-19900825",
-        "player_name": "Max Muncy",
-        "proj_score_eff": 27.5,
-        "proj_score": 24.2,
-        "card_power": "1.050"
-      },
-      "MI": {
-        "card_name": "Marcus Semien 2025-26 • Limited 84/1000",
-        "player_slug": "marcus-semien-19900917",
-        "player_name": "Marcus Semien",
-        "proj_score_eff": 28.6,
-        "proj_score": 22.0,
-        "card_power": "1.030"
-      },
-      "OF": {
-        "card_name": "Julio Rodríguez 2025-26 • Limited 299/1000",
-        "player_slug": "julio-rodriguez-20001229",
-        "player_name": "Julio Rodríguez",
-        "proj_score_eff": 29.6,
-        "proj_score": 21.6,
+        "card_name": "Dennis Santana 2026-27 • Limited 64/1000",
+        "player_slug": "dennis-santana-19960412",
+        "player_name": "Dennis Santana",
+        "picture_url": "https://assets.sorare.com/card/6defd729-6b29-401c-b4f1-bff7187d7dfe/picture/tinified-4900fe046d7a397593cc11722fdd8ebe.png",
+        "proj_score_eff": 35.5,
+        "proj_score": 10.0,
         "card_power": "1.080"
       },
-      "Flex": {
-        "card_name": "Anthony Volpe 2025-26 • Limited 156/1000",
-        "player_slug": "anthony-volpe-20010428",
-        "player_name": "Anthony Volpe",
-        "proj_score_eff": 27.0,
-        "proj_score": 17.9,
+      "CI": {
+        "card_name": "José Ramírez 2026-27 • Limited 168/1000",
+        "player_slug": "jose-ramirez-19920917",
+        "player_name": "José Ramírez",
+        "picture_url": "https://assets.sorare.com/card/23e13ae5-eaf1-47dc-b416-65133a5d5fdf/picture/tinified-14eca151cf630a471378225f1531d0d0.png",
+        "proj_score_eff": 38.5,
+        "proj_score": 23.5,
+        "card_power": "1.100"
+      },
+      "OF": {
+        "card_name": "Byron Buxton 2026-27 • Limited 310/1000",
+        "player_slug": "byron-buxton-19931218",
+        "player_name": "Byron Buxton",
+        "picture_url": "https://assets.sorare.com/card/855e3c20-6c04-40d7-8f87-3e5e5d410d32/picture/tinified-553553a97b48a5f04191da5190d41086.png",
+        "proj_score_eff": 47.9,
+        "proj_score": 39.2,
         "card_power": "1.060"
       },
+      "Flex": {
+        "card_name": "Taylor Ward 2026-27 • Limited 253/1000",
+        "player_slug": "taylor-ward-19931214",
+        "player_name": "Taylor Ward",
+        "picture_url": "https://assets.sorare.com/card/dd60b300-1019-42b8-b00a-e78049bd47d6/picture/tinified-fb928a43519c6b1d28cdf4a850aaa7cc.png",
+        "proj_score_eff": 36.8,
+        "proj_score": 25.9,
+        "card_power": "1.080"
+      },
       "Libre": {
-        "card_name": "Brandon Lowe 2025-26 • Limited 263/1000",
-        "player_slug": "brandon-lowe-19940706",
-        "player_name": "Brandon Lowe",
-        "proj_score_eff": 26.3,
-        "proj_score": 40.8,
-        "card_power": "1.040"
+        "card_name": "Aaron Judge 2026-27 • Limited 470/1000",
+        "player_slug": "aaron-judge-19920426",
+        "player_name": "Aaron Judge",
+        "picture_url": "https://assets.sorare.com/card/f5ca8283-0eef-402d-93f1-3deea0d5b512/picture/tinified-53e885b321d5d35146cf6c17d4ef930e.png",
+        "proj_score_eff": 34.7,
+        "proj_score": 27.3,
+        "card_power": "1.070"
       }
     }
   },
   {
-    "lineup_id": "e59f1748-ec1f-4391-965f-fe90237f1a35",
-    "saved_at": "2026-05-18T20:37:12.929972+00:00",
-    "gw_int": 134,
+    "lineup_id": "b6ac3b13-4024-43e8-b382-6db43febf401",
+    "saved_at": "2026-05-25T14:13:24.242047+00:00",
+    "gw_int": 136,
     "manager": "Ezox",
     "mode": "Hot Streak",
-    "rarity": "limited",
+    "rarity": "Limited",
     "score_src": "Sorare GW+",
     "slots": {
+      "OF": {
+        "card_name": "Byron Buxton 2025-26 • Limited 120/1000",
+        "player_slug": "byron-buxton-19931218",
+        "player_name": "Byron Buxton",
+        "picture_url": "https://assets.sorare.com/card/153e4b37-defa-4319-a8ca-9db771214304/picture/tinified-8e52b86b95d6f3729cc5c52bf412b1a4.png",
+        "proj_score_eff": 48.8,
+        "proj_score": 39.2,
+        "card_power": "1.080"
+      },
       "SP": {
-        "card_name": "Sandy Alcantara 2026-27 • Limited 175/1000",
-        "player_slug": "sandy-alcantara-19950907",
-        "player_name": "Sandy Alcantara",
-        "proj_score_eff": 17.4,
-        "proj_score": 17.9,
-        "card_power": "1.090"
+        "card_name": "Jacob Misiorowski 2026-27 • Limited 327/1000",
+        "player_slug": "jacob-misiorowski-20020403",
+        "player_name": "Jacob Misiorowski",
+        "picture_url": "https://assets.sorare.com/card/468b81e7-690a-4619-98bc-e9f8d8a099f6/picture/tinified-18a3fb69d9b47fda11cbae8c29ab7e7a.png",
+        "proj_score_eff": 26.8,
+        "proj_score": 23.9,
+        "card_power": "1.080"
       },
       "RP": {
-        "card_name": "Bryan Baker 2026-27 • Limited 95/1000",
-        "player_slug": "bryan-baker-19941202",
-        "player_name": "Bryan Baker",
-        "proj_score_eff": 27.0,
-        "proj_score": 12.4,
+        "card_name": "Cade Smith 2026-27 • Limited 265/1000",
+        "player_slug": "cade-smith-19990509",
+        "player_name": "Cade Smith",
+        "picture_url": "https://assets.sorare.com/card/296e6240-cd88-42ba-a86a-402aa189f69c/picture/tinified-d9401ceb0737c4bf1bd571cfafe7e402.png",
+        "proj_score_eff": 32.0,
+        "proj_score": 15.5,
         "card_power": "1.070"
       },
+      "CI": {
+        "card_name": "Kyle Schwarber 2026-27 • Limited 286/1000",
+        "player_slug": "kyle-schwarber-19930305",
+        "player_name": "Kyle Schwarber",
+        "picture_url": "https://assets.sorare.com/card/0aec2084-1f77-4b13-b28c-0405b7662e8a/picture/tinified-ac27cfd5abac5b3482be7741ea683f04.png",
+        "proj_score_eff": 32.2,
+        "proj_score": 28.9,
+        "card_power": "1.080"
+      },
+      "MI": {
+        "card_name": "Brice Turang 2026-27 • Limited 191/1000",
+        "player_slug": "brice-turang-19991121",
+        "player_name": "Brice Turang",
+        "picture_url": "https://assets.sorare.com/card/b81299cd-961b-434e-8737-d8d0bc04dbfe/picture/tinified-2805530cb22f7f189175f764ebaeb866.png",
+        "proj_score_eff": 30.3,
+        "proj_score": 26.5,
+        "card_power": "1.090"
+      },
+      "Flex": {
+        "card_name": "Aaron Judge 2026-27 • Limited 417/1000",
+        "player_slug": "aaron-judge-19920426",
+        "player_name": "Aaron Judge",
+        "picture_url": "https://assets.sorare.com/card/b6428413-bcdb-45c1-b813-5799a9bd6c76/picture/tinified-47877dcc1ff8342b2d7216a16f2da4a3.png",
+        "proj_score_eff": 34.7,
+        "proj_score": 27.3,
+        "card_power": "1.070"
+      },
+      "Libre": {
+        "card_name": "Ernie Clement 2026-27 • Limited 108/1000",
+        "player_slug": "ernie-clement-19960322",
+        "player_name": "Ernie Clement",
+        "picture_url": "https://assets.sorare.com/card/e5d989df-1bac-4514-94ed-6696548c1adc/picture/tinified-d5b1f2a43d4bf3386dacf76790b30123.png",
+        "proj_score_eff": 32.0,
+        "proj_score": 23.7,
+        "card_power": "1.090"
+      }
+    },
+    "suggested_slots_auto": {
+      "OF": {
+        "card_name": "Byron Buxton 2025-26 • Limited 120/1000",
+        "player_slug": "byron-buxton-19931218",
+        "player_name": "Byron Buxton",
+        "picture_url": "https://assets.sorare.com/card/153e4b37-defa-4319-a8ca-9db771214304/picture/tinified-8e52b86b95d6f3729cc5c52bf412b1a4.png",
+        "proj_score_eff": 42.3,
+        "proj_score": 39.2,
+        "card_power": "1.080"
+      },
+      "SP": {
+        "card_name": "Nolan McLean 2026-27 • Limited 259/1000",
+        "player_slug": "nolan-mclean-20010724",
+        "player_name": "Nolan McLean",
+        "picture_url": "https://assets.sorare.com/card/2a67152c-bc18-4b8b-a32c-87bddf625698/picture/tinified-4d563ad4b3c49ff9eea1af42306d637a.png",
+        "proj_score_eff": 27.3,
+        "proj_score": 25.8,
+        "card_power": "1.060"
+      },
+      "RP": {
+        "card_name": "Cade Smith 2026-27 • Limited 265/1000",
+        "player_slug": "cade-smith-19990509",
+        "player_name": "Cade Smith",
+        "picture_url": "https://assets.sorare.com/card/296e6240-cd88-42ba-a86a-402aa189f69c/picture/tinified-d9401ceb0737c4bf1bd571cfafe7e402.png",
+        "proj_score_eff": 16.6,
+        "proj_score": 15.5,
+        "card_power": "1.070"
+      },
+      "CI": {
+        "card_name": "Ivan Herrera 2026-27 • Limited 138/1000",
+        "player_slug": "ivan-herrera-20000601",
+        "player_name": "Ivan Herrera",
+        "picture_url": "https://assets.sorare.com/card/e8a62b13-3cc5-4233-95f4-e98be0e3f983/picture/tinified-27e49e347c88e82c28ab763bb8550e5e.png",
+        "proj_score_eff": 28.2,
+        "proj_score": 26.4,
+        "card_power": "1.070"
+      },
+      "MI": {
+        "card_name": "Brice Turang 2026-27 • Limited 191/1000",
+        "player_slug": "brice-turang-19991121",
+        "player_name": "Brice Turang",
+        "picture_url": "https://assets.sorare.com/card/b81299cd-961b-434e-8737-d8d0bc04dbfe/picture/tinified-2805530cb22f7f189175f764ebaeb866.png",
+        "proj_score_eff": 28.9,
+        "proj_score": 26.5,
+        "card_power": "1.090"
+      },
+      "Flex": {
+        "card_name": "Aaron Judge 2026-27 • Limited 417/1000",
+        "player_slug": "aaron-judge-19920426",
+        "player_name": "Aaron Judge",
+        "picture_url": "https://assets.sorare.com/card/b6428413-bcdb-45c1-b813-5799a9bd6c76/picture/tinified-47877dcc1ff8342b2d7216a16f2da4a3.png",
+        "proj_score_eff": 29.2,
+        "proj_score": 27.3,
+        "card_power": "1.070"
+      },
+      "Libre": {
+        "card_name": "Randy Arozarena 2026-27 • Limited 80/1000",
+        "player_slug": "randy-arozarena-19950228",
+        "player_name": "Randy Arozarena",
+        "picture_url": "https://assets.sorare.com/card/1fa4e4e3-e8c2-4998-97ee-656c7b8fc27e/picture/tinified-32822a4118082e41fc6316130d5dd0c7.png",
+        "proj_score_eff": 27.2,
+        "proj_score": 24.7,
+        "card_power": "1.100"
+      }
+    },
+    "suggested_slots_sorare": {
+      "OF": {
+        "card_name": "Byron Buxton 2025-26 • Limited 120/1000",
+        "player_slug": "byron-buxton-19931218",
+        "player_name": "Byron Buxton",
+        "picture_url": "https://assets.sorare.com/card/153e4b37-defa-4319-a8ca-9db771214304/picture/tinified-8e52b86b95d6f3729cc5c52bf412b1a4.png",
+        "proj_score_eff": 48.8,
+        "proj_score": 39.2,
+        "card_power": "1.080"
+      },
+      "SP": {
+        "card_name": "Jacob Misiorowski 2026-27 • Limited 327/1000",
+        "player_slug": "jacob-misiorowski-20020403",
+        "player_name": "Jacob Misiorowski",
+        "picture_url": "https://assets.sorare.com/card/468b81e7-690a-4619-98bc-e9f8d8a099f6/picture/tinified-18a3fb69d9b47fda11cbae8c29ab7e7a.png",
+        "proj_score_eff": 26.8,
+        "proj_score": 23.9,
+        "card_power": "1.080"
+      },
+      "RP": {
+        "card_name": "Seranthony Domínguez 2026-27 • Limited 113/1000",
+        "player_slug": "seranthony-dominguez-19941125",
+        "player_name": "Seranthony Domínguez",
+        "picture_url": "https://assets.sorare.com/card/ed8a673a-19c1-4b7a-9ce4-4e540fe06ae5/picture/tinified-bd8290e55bbbc80be517f9897ebc366c.png",
+        "proj_score_eff": 34.8,
+        "proj_score": 13.0,
+        "card_power": "1.070"
+      },
+      "CI": {
+        "card_name": "Kyle Schwarber 2026-27 • Limited 286/1000",
+        "player_slug": "kyle-schwarber-19930305",
+        "player_name": "Kyle Schwarber",
+        "picture_url": "https://assets.sorare.com/card/0aec2084-1f77-4b13-b28c-0405b7662e8a/picture/tinified-ac27cfd5abac5b3482be7741ea683f04.png",
+        "proj_score_eff": 32.2,
+        "proj_score": 28.9,
+        "card_power": "1.080"
+      },
+      "MI": {
+        "card_name": "Brice Turang 2026-27 • Limited 191/1000",
+        "player_slug": "brice-turang-19991121",
+        "player_name": "Brice Turang",
+        "picture_url": "https://assets.sorare.com/card/b81299cd-961b-434e-8737-d8d0bc04dbfe/picture/tinified-2805530cb22f7f189175f764ebaeb866.png",
+        "proj_score_eff": 30.3,
+        "proj_score": 26.5,
+        "card_power": "1.090"
+      },
+      "Flex": {
+        "card_name": "Aaron Judge 2026-27 • Limited 417/1000",
+        "player_slug": "aaron-judge-19920426",
+        "player_name": "Aaron Judge",
+        "picture_url": "https://assets.sorare.com/card/b6428413-bcdb-45c1-b813-5799a9bd6c76/picture/tinified-47877dcc1ff8342b2d7216a16f2da4a3.png",
+        "proj_score_eff": 34.7,
+        "proj_score": 27.3,
+        "card_power": "1.070"
+      },
+      "Libre": {
+        "card_name": "Ernie Clement 2026-27 • Limited 108/1000",
+        "player_slug": "ernie-clement-19960322",
+        "player_name": "Ernie Clement",
+        "picture_url": "https://assets.sorare.com/card/e5d989df-1bac-4514-94ed-6696548c1adc/picture/tinified-d5b1f2a43d4bf3386dacf76790b30123.png",
+        "proj_score_eff": 32.0,
+        "proj_score": 23.7,
+        "card_power": "1.090"
+      }
+    }
+  },
+  {
+    "lineup_id": "850ebe22-5c03-46f8-907e-57a2c9d6a771",
+    "saved_at": "2026-05-25T14:13:41.121735+00:00",
+    "gw_int": 136,
+    "manager": "Ezox",
+    "mode": "Hot Streak",
+    "rarity": "Limited",
+    "score_src": "Sorare GW+",
+    "slots": {
+      "CI": {
+        "card_name": "Pete Alonso 2025-26 • Limited 209/1000",
+        "player_slug": "pete-alonso-19941207",
+        "player_name": "Pete Alonso",
+        "picture_url": "https://assets.sorare.com/card/e7cdd437-de9c-4568-8be7-faa601816f0e/picture/tinified-d0ae5aea10ab14070ef1e1e65c611b9d.png",
+        "proj_score_eff": 37.2,
+        "proj_score": 29.9,
+        "card_power": "1.050"
+      },
+      "SP": {
+        "card_name": "Jacob deGrom 2026-27 • Limited 229/1000",
+        "player_slug": "jacob-degrom-19880619",
+        "player_name": "Jacob deGrom",
+        "picture_url": "https://assets.sorare.com/card/1e8a9345-05f4-4d56-8582-0699420f3cf9/picture/tinified-779bed4139a5b47b4e677a9324c7da30.png",
+        "proj_score_eff": 24.9,
+        "proj_score": 23.9,
+        "card_power": "1.060"
+      },
+      "RP": {
+        "card_name": "Dennis Santana 2026-27 • Limited 64/1000",
+        "player_slug": "dennis-santana-19960412",
+        "player_name": "Dennis Santana",
+        "picture_url": "https://assets.sorare.com/card/6defd729-6b29-401c-b4f1-bff7187d7dfe/picture/tinified-4900fe046d7a397593cc11722fdd8ebe.png",
+        "proj_score_eff": 35.5,
+        "proj_score": 10.0,
+        "card_power": "1.080"
+      },
+      "MI": {
+        "card_name": "Elly De La Cruz 2026-27 • Limited 9/1000",
+        "player_slug": "elly-de-la-cruz-20020111",
+        "player_name": "Elly De La Cruz",
+        "picture_url": "https://assets.sorare.com/card/59fc3c50-66a4-4784-9d22-ffdb4dbcad65/picture/tinified-4ba66bfb247521c8680239e1b747e2bc.png",
+        "proj_score_eff": 29.7,
+        "proj_score": 27.7,
+        "card_power": "1.100"
+      },
+      "OF": {
+        "card_name": "Julio Rodríguez 2026-27 • Limited 211/1000",
+        "player_slug": "julio-rodriguez-20001229",
+        "player_name": "Julio Rodríguez",
+        "picture_url": "https://assets.sorare.com/card/bfd63b8a-e6f8-406c-9954-2027f2948a79/picture/tinified-fa95adfed52c0bb5a7062624f742ae85.png",
+        "proj_score_eff": 31.0,
+        "proj_score": 22.7,
+        "card_power": "1.090"
+      },
+      "Flex": {
+        "card_name": "Pete Crow-Armstrong 2026-27 • Limited 99/1000",
+        "player_slug": "pete-crow-armstrong-20020325",
+        "player_name": "Pete Crow-Armstrong",
+        "picture_url": "https://assets.sorare.com/card/61fccdc5-dec6-455e-b079-a26484349164/picture/tinified-161b2b177b1c6801dbd9a4b99146974f.png",
+        "proj_score_eff": 30.8,
+        "proj_score": 24.1,
+        "card_power": "1.090"
+      },
+      "Libre": {
+        "card_name": "Austin Martin 2026-27 • Limited 67/1000",
+        "player_slug": "austin-martin-19990323",
+        "player_name": "Austin Martin",
+        "picture_url": "https://assets.sorare.com/card/fe785c75-bc2a-4b5c-a9ec-b603e0fad5b9/picture/tinified-10bca5485f291274d98d05805cd8047e.png",
+        "proj_score_eff": 30.0,
+        "proj_score": 23.6,
+        "card_power": "1.060"
+      }
+    },
+    "suggested_slots_auto": {
       "CI": {
         "card_name": "Kyle Schwarber 2025-26 • Limited 195/1000",
         "player_slug": "kyle-schwarber-19930305",
         "player_name": "Kyle Schwarber",
+        "picture_url": "https://assets.sorare.com/card/80b51195-f42b-4b10-8b2d-2783a279a157/picture/tinified-3c48960bc4f7a67bd64682c806341637.png",
+        "proj_score_eff": 31.5,
+        "proj_score": 28.9,
+        "card_power": "1.090"
+      },
+      "SP": {
+        "card_name": "Jacob deGrom 2026-27 • Limited 229/1000",
+        "player_slug": "jacob-degrom-19880619",
+        "player_name": "Jacob deGrom",
+        "picture_url": "https://assets.sorare.com/card/1e8a9345-05f4-4d56-8582-0699420f3cf9/picture/tinified-779bed4139a5b47b4e677a9324c7da30.png",
         "proj_score_eff": 25.3,
-        "proj_score": 33.1,
+        "proj_score": 23.9,
+        "card_power": "1.060"
+      },
+      "RP": {
+        "card_name": "Trevor Megill 2026-27 • Limited 88/1000",
+        "player_slug": "trevor-megill-19931205",
+        "player_name": "Trevor Megill",
+        "picture_url": "https://assets.sorare.com/card/90bc0df2-ec1c-4b69-99e4-efb20c1b697e/picture/tinified-b18ed4fb5851723d93b37b11a0686421.png",
+        "proj_score_eff": 15.2,
+        "proj_score": 13.9,
         "card_power": "1.090"
       },
       "MI": {
-        "card_name": "Mookie Betts 2025-26 • Limited 354/1000",
-        "player_slug": "mookie-betts-19921007",
-        "player_name": "Mookie Betts",
-        "proj_score_eff": 25.9,
-        "proj_score": 21.6,
-        "card_power": "1.060"
+        "card_name": "Geraldo Perdomo 2026-27 • Limited 99/1000",
+        "player_slug": "geraldo-perdomo-19991022",
+        "player_name": "Geraldo Perdomo",
+        "picture_url": "https://assets.sorare.com/card/8f8f2532-793b-45c7-ad50-5d0583a9ed2e/picture/tinified-2e2c31bce131548b82604cc5a3b3dca7.png",
+        "proj_score_eff": 24.3,
+        "proj_score": 22.3,
+        "card_power": "1.090"
       },
       "OF": {
-        "card_name": "Jackson Chourio 2025-26 • Limited 356/1000",
-        "player_slug": "jackson-chourio-20040311",
-        "player_name": "Jackson Chourio",
-        "proj_score_eff": 25.6,
-        "proj_score": 23.9,
-        "card_power": "1.020"
+        "card_name": "Pete Crow-Armstrong 2026-27 • Limited 99/1000",
+        "player_slug": "pete-crow-armstrong-20020325",
+        "player_name": "Pete Crow-Armstrong",
+        "picture_url": "https://assets.sorare.com/card/61fccdc5-dec6-455e-b079-a26484349164/picture/tinified-161b2b177b1c6801dbd9a4b99146974f.png",
+        "proj_score_eff": 26.3,
+        "proj_score": 24.1,
+        "card_power": "1.090"
       },
       "Flex": {
-        "card_name": "Gunnar Henderson 2025-26 • Limited 283/1000",
-        "player_slug": "gunnar-henderson-20010629",
-        "player_name": "Gunnar Henderson",
-        "proj_score_eff": 25.6,
-        "proj_score": 19.7,
-        "card_power": "1.060"
+        "card_name": "James Wood 2026-27 • Limited 110/1000",
+        "player_slug": "james-wood-20020917",
+        "player_name": "James Wood",
+        "picture_url": "https://assets.sorare.com/card/2d16eabd-9aa2-458e-868c-db6764416f7e/picture/tinified-9bf38c7af71e82240ecbf385f1180faf.png",
+        "proj_score_eff": 26.1,
+        "proj_score": 23.5,
+        "card_power": "1.110"
       },
       "Libre": {
-        "card_name": "Matt Chapman 2025-26 • Limited 107/1000",
-        "player_slug": "matt-chapman-19930428",
-        "player_name": "Matt Chapman",
-        "proj_score_eff": 25.8,
-        "proj_score": 14.3,
-        "card_power": "1.070"
+        "card_name": "Austin Martin 2026-27 • Limited 67/1000",
+        "player_slug": "austin-martin-19990323",
+        "player_name": "Austin Martin",
+        "picture_url": "https://assets.sorare.com/card/fe785c75-bc2a-4b5c-a9ec-b603e0fad5b9/picture/tinified-10bca5485f291274d98d05805cd8047e.png",
+        "proj_score_eff": 25.0,
+        "proj_score": 23.6,
+        "card_power": "1.060"
       }
     },
-    "suggested_slots": {
+    "suggested_slots_sorare": {
+      "CI": {
+        "card_name": "Pete Alonso 2025-26 • Limited 209/1000",
+        "player_slug": "pete-alonso-19941207",
+        "player_name": "Pete Alonso",
+        "picture_url": "https://assets.sorare.com/card/e7cdd437-de9c-4568-8be7-faa601816f0e/picture/tinified-d0ae5aea10ab14070ef1e1e65c611b9d.png",
+        "proj_score_eff": 37.2,
+        "proj_score": 29.9,
+        "card_power": "1.050"
+      },
       "SP": {
-        "card_name": "Kris Bubic 2025-26 • Limited 194/1000",
-        "player_slug": "kris-bubic-19970819",
-        "player_name": "Kris Bubic",
-        "proj_score_eff": 20.9,
-        "proj_score": 19.25,
-        "card_power": "1.030"
+        "card_name": "Jacob deGrom 2026-27 • Limited 229/1000",
+        "player_slug": "jacob-degrom-19880619",
+        "player_name": "Jacob deGrom",
+        "picture_url": "https://assets.sorare.com/card/1e8a9345-05f4-4d56-8582-0699420f3cf9/picture/tinified-779bed4139a5b47b4e677a9324c7da30.png",
+        "proj_score_eff": 24.9,
+        "proj_score": 23.9,
+        "card_power": "1.060"
       },
       "RP": {
-        "card_name": "Bryan Baker 2026-27 • Limited 95/1000",
-        "player_slug": "bryan-baker-19941202",
-        "player_name": "Bryan Baker",
-        "proj_score_eff": 27.0,
-        "proj_score": 12.4,
-        "card_power": "1.070"
-      },
-      "CI": {
-        "card_name": "Ryan McMahon 2026-27 • Limited 185/1000",
-        "player_slug": "ryan-mcmahon-19941214",
-        "player_name": "Ryan McMahon",
-        "proj_score_eff": 18.5,
-        "proj_score": 15.3,
+        "card_name": "Bryan King 2026-27 • Limited 87/1000",
+        "player_slug": "bryan-king-19961105",
+        "player_name": "Bryan King",
+        "picture_url": "https://assets.sorare.com/card/b40c262a-9dab-4710-9e03-ce696ed6fcc8/picture/tinified-4823abb3930fbab1e77ef7403de781fe.png",
+        "proj_score_eff": 33.4,
+        "proj_score": 11.3,
         "card_power": "1.060"
       },
       "MI": {
-        "card_name": "Mookie Betts 2025-26 • Limited 354/1000",
-        "player_slug": "mookie-betts-19921007",
-        "player_name": "Mookie Betts",
-        "proj_score_eff": 25.9,
-        "proj_score": 21.6,
-        "card_power": "1.060"
+        "card_name": "Elly De La Cruz 2026-27 • Limited 9/1000",
+        "player_slug": "elly-de-la-cruz-20020111",
+        "player_name": "Elly De La Cruz",
+        "picture_url": "https://assets.sorare.com/card/59fc3c50-66a4-4784-9d22-ffdb4dbcad65/picture/tinified-4ba66bfb247521c8680239e1b747e2bc.png",
+        "proj_score_eff": 29.7,
+        "proj_score": 27.7,
+        "card_power": "1.100"
       },
       "OF": {
-        "card_name": "Brandon Marsh 2026-27 • Limited 159/1000",
-        "player_slug": "brandon-marsh-19971218",
-        "player_name": "Brandon Marsh",
-        "proj_score_eff": 16.5,
-        "proj_score": 21.4,
-        "card_power": "1.070"
+        "card_name": "Julio Rodríguez 2026-27 • Limited 211/1000",
+        "player_slug": "julio-rodriguez-20001229",
+        "player_name": "Julio Rodríguez",
+        "picture_url": "https://assets.sorare.com/card/bfd63b8a-e6f8-406c-9954-2027f2948a79/picture/tinified-fa95adfed52c0bb5a7062624f742ae85.png",
+        "proj_score_eff": 31.0,
+        "proj_score": 22.7,
+        "card_power": "1.090"
       },
       "Flex": {
-        "card_name": "Bryce Johnson 2026-27 • Limited 63/1000",
-        "player_slug": "bryce-johnson-19951027",
-        "player_name": "Bryce Johnson",
-        "proj_score_eff": 5.6,
-        "proj_score": 9.4,
-        "card_power": "1.060"
+        "card_name": "Pete Crow-Armstrong 2026-27 • Limited 99/1000",
+        "player_slug": "pete-crow-armstrong-20020325",
+        "player_name": "Pete Crow-Armstrong",
+        "picture_url": "https://assets.sorare.com/card/61fccdc5-dec6-455e-b079-a26484349164/picture/tinified-161b2b177b1c6801dbd9a4b99146974f.png",
+        "proj_score_eff": 30.8,
+        "proj_score": 24.1,
+        "card_power": "1.090"
       },
       "Libre": {
-        "card_name": "Matt Chapman 2025-26 • Limited 107/1000",
-        "player_slug": "matt-chapman-19930428",
-        "player_name": "Matt Chapman",
-        "proj_score_eff": 25.8,
-        "proj_score": 14.3,
+        "card_name": "Austin Martin 2026-27 • Limited 67/1000",
+        "player_slug": "austin-martin-19990323",
+        "player_name": "Austin Martin",
+        "picture_url": "https://assets.sorare.com/card/fe785c75-bc2a-4b5c-a9ec-b603e0fad5b9/picture/tinified-10bca5485f291274d98d05805cd8047e.png",
+        "proj_score_eff": 30.0,
+        "proj_score": 23.6,
+        "card_power": "1.060"
+      }
+    }
+  },
+  {
+    "lineup_id": "1d208514-2772-410f-a99d-39d6920d8aa0",
+    "saved_at": "2026-05-25T14:15:14.355930+00:00",
+    "gw_int": 136,
+    "manager": "Ezox",
+    "mode": "Hot Streak",
+    "rarity": "Limited",
+    "score_src": "Sorare GW+",
+    "slots": {
+      "CI": {
+        "card_name": "José Ramírez 2025-26 • Limited 449/1000",
+        "player_slug": "jose-ramirez-19920917",
+        "player_name": "José Ramírez",
+        "picture_url": "https://assets.sorare.com/card/245a566f-ed2e-4373-9a32-88c97216c591/picture/tinified-29e2ccadd35273ea989638af804dca7a.png",
+        "proj_score_eff": 37.1,
+        "proj_score": 23.5,
+        "card_power": "1.060"
+      },
+      "SP": {
+        "card_name": "Cristopher Sánchez 2026-27 • Limited 170/1000",
+        "player_slug": "cristopher-sanchez-19961212",
+        "player_name": "Cristopher Sánchez",
+        "picture_url": "https://assets.sorare.com/card/5bfb46a3-5d66-485e-bcc7-06b1884cd1ab/picture/tinified-5bc0b210e6dd5cc12ffefca4cbc9a835.png",
+        "proj_score_eff": 23.5,
+        "proj_score": 26.8,
+        "card_power": "1.090"
+      },
+      "RP": {
+        "card_name": "Rico Garcia 2026-27 • Limited 48/1000",
+        "player_slug": "rico-garcia-19940110",
+        "player_name": "Rico Garcia",
+        "picture_url": "https://assets.sorare.com/card/0c9edee0-2277-4aa8-8673-3af7b50825f0/picture/tinified-3a5be9d97bca159e2bae61d79f1e57d9.png",
+        "proj_score_eff": 29.3,
+        "proj_score": 12.5,
+        "card_power": "1.090"
+      },
+      "MI": {
+        "card_name": "Geraldo Perdomo 2026-27 • Limited 99/1000",
+        "player_slug": "geraldo-perdomo-19991022",
+        "player_name": "Geraldo Perdomo",
+        "picture_url": "https://assets.sorare.com/card/8f8f2532-793b-45c7-ad50-5d0583a9ed2e/picture/tinified-2e2c31bce131548b82604cc5a3b3dca7.png",
+        "proj_score_eff": 27.3,
+        "proj_score": 22.3,
+        "card_power": "1.090"
+      },
+      "OF": {
+        "card_name": "James Wood 2026-27 • Limited 110/1000",
+        "player_slug": "james-wood-20020917",
+        "player_name": "James Wood",
+        "picture_url": "https://assets.sorare.com/card/2d16eabd-9aa2-458e-868c-db6764416f7e/picture/tinified-9bf38c7af71e82240ecbf385f1180faf.png",
+        "proj_score_eff": 28.6,
+        "proj_score": 23.5,
+        "card_power": "1.110"
+      },
+      "Flex": {
+        "card_name": "Josh Naylor 2026-27 • Limited 238/1000",
+        "player_slug": "josh-naylor-19970622",
+        "player_name": "Josh Naylor",
+        "picture_url": "https://assets.sorare.com/card/d435118f-0a80-4b5e-a465-2fd7c1b17fd3/picture/tinified-741f97c9dae37f18471f6f84d487802b.png",
+        "proj_score_eff": 28.1,
+        "proj_score": 20.8,
+        "card_power": "1.080"
+      },
+      "Libre": {
+        "card_name": "Randy Arozarena 2026-27 • Limited 80/1000",
+        "player_slug": "randy-arozarena-19950228",
+        "player_name": "Randy Arozarena",
+        "picture_url": "https://assets.sorare.com/card/1fa4e4e3-e8c2-4998-97ee-656c7b8fc27e/picture/tinified-32822a4118082e41fc6316130d5dd0c7.png",
+        "proj_score_eff": 27.3,
+        "proj_score": 24.7,
+        "card_power": "1.100"
+      }
+    },
+    "suggested_slots_auto": {
+      "OF": {
+        "card_name": "Cody Bellinger 2025-26 • Limited 440/1000",
+        "player_slug": "cody-bellinger-19950713",
+        "player_name": "Cody Bellinger",
+        "picture_url": "https://assets.sorare.com/card/2df93e91-6b67-48e3-87a7-b61f70da1364/picture/tinified-1d11cb780b61944265a2323113b7a1c0.png",
+        "proj_score_eff": 30.0,
+        "proj_score": 28.6,
+        "card_power": "1.050"
+      },
+      "SP": {
+        "card_name": "Ranger Suárez 2026-27 • Limited 97/1000",
+        "player_slug": "ranger-suarez-19950826",
+        "player_name": "Ranger Suarez",
+        "picture_url": "https://assets.sorare.com/card/e4952768-5040-4d9a-9b61-e09288d14738/picture/tinified-257f5cc640660d156c84fae9d72470f0.png",
+        "proj_score_eff": 23.1,
+        "proj_score": 21.2,
+        "card_power": "1.090"
+      },
+      "RP": {
+        "card_name": "Pete Fairbanks 2026-27 • Limited 78/1000",
+        "player_slug": "pete-fairbanks-19931216",
+        "player_name": "Pete Fairbanks",
+        "picture_url": "https://assets.sorare.com/card/3d44a867-3bf4-457b-b2e7-2d428e43fc4b/picture/tinified-41c53709359e6b12f54a8b2e6b8cad4b.png",
+        "proj_score_eff": 14.9,
+        "proj_score": 13.7,
+        "card_power": "1.090"
+      },
+      "CI": {
+        "card_name": "Nick Gonzales 2026-27 • Limited 99/1000",
+        "player_slug": "nick-gonzales-19990527",
+        "player_name": "Nick Gonzales",
+        "picture_url": "https://assets.sorare.com/card/f985e84e-3caa-4881-891c-d28e8f8bef3a/picture/tinified-a4936e1a13bf323aae202f23f183627f.png",
+        "proj_score_eff": 22.8,
+        "proj_score": 21.5,
+        "card_power": "1.060"
+      },
+      "MI": {
+        "card_name": "Dansby Swanson 2026-27 • Limited 45/1000",
+        "player_slug": "dansby-swanson-19940211",
+        "player_name": "Dansby Swanson",
+        "picture_url": "https://assets.sorare.com/card/d87fae73-876c-41e1-a42b-f24f89cf67c3/picture/tinified-d8c859772f789350daa755e72384441a.png",
+        "proj_score_eff": 23.3,
+        "proj_score": 21.6,
+        "card_power": "1.080"
+      },
+      "Flex": {
+        "card_name": "Otto Lopez 2026-27 • Limited 124/1000",
+        "player_slug": "otto-lopez-19981001",
+        "player_name": "Otto Lopez",
+        "picture_url": "https://assets.sorare.com/card/c0fa3c92-195f-4dea-a1c6-0b1ca4b45326/picture/tinified-b18e87b89afc40c5f887c3243edf63bd.png",
+        "proj_score_eff": 23.3,
+        "proj_score": 21.4,
+        "card_power": "1.090"
+      },
+      "Libre": {
+        "card_name": "Josh Naylor 2026-27 • Limited 238/1000",
+        "player_slug": "josh-naylor-19970622",
+        "player_name": "Josh Naylor",
+        "picture_url": "https://assets.sorare.com/card/d435118f-0a80-4b5e-a465-2fd7c1b17fd3/picture/tinified-741f97c9dae37f18471f6f84d487802b.png",
+        "proj_score_eff": 22.5,
+        "proj_score": 20.8,
+        "card_power": "1.080"
+      }
+    },
+    "suggested_slots_sorare": {
+      "CI": {
+        "card_name": "José Ramírez 2025-26 • Limited 449/1000",
+        "player_slug": "jose-ramirez-19920917",
+        "player_name": "José Ramírez",
+        "picture_url": "https://assets.sorare.com/card/245a566f-ed2e-4373-9a32-88c97216c591/picture/tinified-29e2ccadd35273ea989638af804dca7a.png",
+        "proj_score_eff": 37.1,
+        "proj_score": 23.5,
+        "card_power": "1.060"
+      },
+      "SP": {
+        "card_name": "Cristopher Sánchez 2026-27 • Limited 170/1000",
+        "player_slug": "cristopher-sanchez-19961212",
+        "player_name": "Cristopher Sánchez",
+        "picture_url": "https://assets.sorare.com/card/5bfb46a3-5d66-485e-bcc7-06b1884cd1ab/picture/tinified-5bc0b210e6dd5cc12ffefca4cbc9a835.png",
+        "proj_score_eff": 23.5,
+        "proj_score": 26.8,
+        "card_power": "1.090"
+      },
+      "RP": {
+        "card_name": "Grant Taylor 2026-27 • Limited 16/1000",
+        "player_slug": "grant-taylor-20020520",
+        "player_name": "Grant Taylor",
+        "picture_url": "https://assets.sorare.com/card/8b3e4dd1-5716-41b3-a15b-d0253059e488/picture/tinified-9f6c9f62451ef4090d227084ed97261c.png",
+        "proj_score_eff": 33.2,
+        "proj_score": 12.8,
         "card_power": "1.070"
+      },
+      "MI": {
+        "card_name": "Geraldo Perdomo 2026-27 • Limited 99/1000",
+        "player_slug": "geraldo-perdomo-19991022",
+        "player_name": "Geraldo Perdomo",
+        "picture_url": "https://assets.sorare.com/card/8f8f2532-793b-45c7-ad50-5d0583a9ed2e/picture/tinified-2e2c31bce131548b82604cc5a3b3dca7.png",
+        "proj_score_eff": 27.3,
+        "proj_score": 22.3,
+        "card_power": "1.090"
+      },
+      "OF": {
+        "card_name": "James Wood 2026-27 • Limited 110/1000",
+        "player_slug": "james-wood-20020917",
+        "player_name": "James Wood",
+        "picture_url": "https://assets.sorare.com/card/2d16eabd-9aa2-458e-868c-db6764416f7e/picture/tinified-9bf38c7af71e82240ecbf385f1180faf.png",
+        "proj_score_eff": 28.6,
+        "proj_score": 23.5,
+        "card_power": "1.110"
+      },
+      "Flex": {
+        "card_name": "Josh Naylor 2026-27 • Limited 238/1000",
+        "player_slug": "josh-naylor-19970622",
+        "player_name": "Josh Naylor",
+        "picture_url": "https://assets.sorare.com/card/d435118f-0a80-4b5e-a465-2fd7c1b17fd3/picture/tinified-741f97c9dae37f18471f6f84d487802b.png",
+        "proj_score_eff": 28.1,
+        "proj_score": 20.8,
+        "card_power": "1.080"
+      },
+      "Libre": {
+        "card_name": "Randy Arozarena 2026-27 • Limited 80/1000",
+        "player_slug": "randy-arozarena-19950228",
+        "player_name": "Randy Arozarena",
+        "picture_url": "https://assets.sorare.com/card/1fa4e4e3-e8c2-4998-97ee-656c7b8fc27e/picture/tinified-32822a4118082e41fc6316130d5dd0c7.png",
+        "proj_score_eff": 27.3,
+        "proj_score": 24.7,
+        "card_power": "1.100"
       }
     }
   }
