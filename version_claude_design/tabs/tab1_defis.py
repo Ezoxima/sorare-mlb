@@ -78,8 +78,9 @@ f'<span class="pill accent">{_tab1_day_label}</span>'
     _excl_set: set = set(st.session_state[_excl_key])
 
     # ── Top 5 tous joueurs DB ─────────────────────────────────────────────────
+    _teams_day = ctx.get("_teams_day", ())
     _df_top5 = load_top_db_players(sel_stat_label, sel_stat, fenetre_int,
-                                   team_slugs_today=(), n=5, target=target,
+                                   team_slugs_today=_teams_day, n=5, target=target,
                                    min_matchs=max(3, fenetre_int // 2))
 
     if not _df_top5.empty:
@@ -88,7 +89,7 @@ f'<span class="pill accent">{_tab1_day_label}</span>'
             f'<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none;margin-top:8px">'
             f'<span class="title">Top 5 — tous joueurs</span>'
             f'<span class="pill">{sel_stat_label}</span>'
-            f'<span class="right" style="color:var(--fg-3);font-size:9px">{fenetre} · tous joueurs MLB</span>'
+            f'<span class="right" style="color:var(--fg-3);font-size:9px">{fenetre} · {sel_day}</span>'
             f'</div>',
             unsafe_allow_html=True,
         )

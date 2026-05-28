@@ -550,6 +550,7 @@ else:
         (df_calendar["next_game_date"].dt.date == _day_filter)
     ]
     _slugs_today = set(_cal_today["player_slug"])
+    _teams_day   = set()
     _tgi         = {}
     _tlogos      = load_team_logos()
 
@@ -647,6 +648,7 @@ ctx = {
     "_injured_slugs": _injured_slugs,
     "_slug_name_map": _slug_name_map,
     "_tlogos":        _tlogos,
+    "_teams_day":     tuple(sorted(_teams_day)),
 }
 
 with tab1:
