@@ -34,7 +34,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from fetch_game_infos import fetch_games, flatten as _flatten_games, store as _store_games
 from fetch_gw_scores  import fetch_game_scores as _fetch_game_scores, \
                              flatten_to_rows as _flatten_gw_scores, \
-                             store as _store_gw_scores
+                             store as _store_gw_scores, \
+                             extract_players_from_game as _extract_gw_players, \
+                             store_players_seen as _store_players_seen
 from fetch_scores     import fetch_scores_for_player, store_scores
 from fetch_prices     import fetch_prices_for_player, store_prices, _load_fx_rates
 from fetch_card_trades import fetch_trades, store_trades
@@ -126,10 +128,12 @@ def _game_ids_from_db(engine, gw_int: int) -> list[dict]:
     return [{"id": r[0], "date": r[1].isoformat()} for r in rows]
 
 
-def _max_score_date(engine) -> str | None:
+def _score_snapshot(engine) -> str | None:
+    """Empreinte de mlb.game_scores : MAX(date) + COUNT(*). Détecte les insertions
+    sur des dates passées (ex. backfill two-way players) que le MAX seul manquerait."""
     with engine.connect() as conn:
         row = conn.execute(text(
-            "SELECT MAX(game_date)::text FROM mlb.game_scores"
+            "SELECT MAX(game_date)::text || '|' || COUNT(*)::text FROM mlb.game_scores"
         )).fetchone()
     return row[0] if row else None
 
@@ -319,7 +323,7 @@ def update_gw_scores(engine, headers: dict, all_fixtures: list) -> None:
             print(f"  [{i+1}/{len(missing)}] GW{gw_int} — aucun match en base, ignoré")
             continue
 
-        all_score_rows, all_detail_rows = [], []
+        all_score_rows, all_detail_rows, all_player_rows = [], [], []
         n_played = 0
         for gm in game_metas:
             game_data = _fetch_game_scores(gm["id"], headers)
@@ -329,10 +333,13 @@ def update_gw_scores(engine, headers: dict, all_fixtures: list) -> None:
             s_rows, d_rows = _flatten_gw_scores(fixture_info, gm, game_data)
             all_score_rows.extend(s_rows)
             all_detail_rows.extend(d_rows)
+            all_player_rows.extend(_extract_gw_players(game_data))
             n_played += 1
             time.sleep(SLEEP_GAME)
 
         _store_gw_scores(engine, all_score_rows, all_detail_rows, gw_int)
+        if all_player_rows:
+            _store_players_seen(engine, all_player_rows)
         print(f"  [{i+1}/{len(missing)}] GW{gw_int} — {n_played}/{len(game_metas)} matchs")
         time.sleep(SLEEP)
 
@@ -619,9 +626,53 @@ def export_to_parquet(engine) -> None:
         """).to_parquet(data_dir / "players.parquet", index=False)
         print("  players.parquet")
 
-        _df(conn, "SELECT team_slug, team_code FROM mlb.teams WHERE team_code IS NOT NULL"
+        _df(conn, "SELECT team_slug, team_code, picture_url FROM mlb.teams WHERE team_code IS NOT NULL"
         ).to_parquet(data_dir / "teams.parquet", index=False)
         print("  teams.parquet")
+
+        # Tous les joueurs vus dans les matchs fetchés (noms + position)
+        # Alimenté par store_players_seen() à chaque fetch_gw_scores.
+        # Fallback : pré-peuplé depuis gallery_players pour les données historiques.
+        try:
+            with engine.begin() as _txn:
+                _txn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS mlb.players_seen (
+                        player_slug  TEXT PRIMARY KEY,
+                        display_name TEXT,
+                        position     TEXT
+                    )
+                """))
+                _txn.execute(text("""
+                    INSERT INTO mlb.players_seen (player_slug, display_name, position)
+                    SELECT DISTINCT player_slug, player_name, card_display_position
+                    FROM mlb.gallery_players
+                    ON CONFLICT (player_slug) DO NOTHING
+                """))
+        except Exception:
+            pass
+        _df(conn, "SELECT player_slug, display_name, position FROM mlb.players_seen"
+        ).to_parquet(data_dir / "players_seen.parquet", index=False)
+        print("  players_seen.parquet")
+
+        # Stats tous joueurs (pas seulement galerie) — 20 derniers matchs joués
+        # Utilisé par l'onglet Base de données pour montrer tout le roster MLB.
+        _df(conn, """
+            WITH ranked AS (
+                SELECT player_slug, game_date,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY player_slug ORDER BY game_date DESC
+                       ) AS rk
+                FROM mlb.game_scores
+                WHERE played_in_game = true
+            )
+            SELECT gsd.player_slug, gsd.game_date, gsd.stat, gsd.stat_short_name,
+                   gsd.category, gsd.stat_value, r.rk
+            FROM mlb.game_score_details gsd
+            JOIN ranked r ON gsd.player_slug = r.player_slug
+                          AND gsd.game_date  = r.game_date
+            WHERE r.rk <= 20
+        """).to_parquet(data_dir / "game_score_details_db.parquet", index=False)
+        print("  game_score_details_db.parquet")
 
         try:
             _df(conn, """
@@ -668,11 +719,13 @@ if __name__ == "__main__":
         store_teams(engine, df_teams)
         fetch_and_store_players(engine, df_teams["team_slug"].tolist(), api_headers)
 
+    _gallery_refreshed = False
     if _run(2):
         print("\n[2/10] Galerie...")
         refresh_gallery(engine, manager_list, api_headers)
+        _gallery_refreshed = True
 
-    _snap_before = _max_score_date(engine) if (_run(3) or _run(5) or _run(6)) else None
+    _snap_before = _score_snapshot(engine) if (_run(3) or _run(5) or _run(6)) else None
 
     if _run(3) or _run(5):
         print("\n  Chargement des fixtures CLASSIC disponibles...")
@@ -702,14 +755,14 @@ if __name__ == "__main__":
         update_new_players(engine, api_headers)
 
     if _snap_before is not None:
-        _snap_after = _max_score_date(engine)
+        _snap_after = _score_snapshot(engine)
         _scores_changed = _snap_after != _snap_before
     else:
         _scores_changed = True
 
     if _run(7):
-        if not _scores_changed and _gallery_stats_exists(engine):
-            print("\n[7/10] Précalcul stats galerie... (skippé — aucun nouveau score)")
+        if not _scores_changed and not _gallery_refreshed and _gallery_stats_exists(engine):
+            print("\n[7/10] Précalcul stats galerie... (skippé — aucun nouveau score ni changement galerie)")
         else:
             print("\n[7/10] Précalcul stats galerie...")
             precompute_gallery_stats(engine)
@@ -747,7 +800,7 @@ if __name__ == "__main__":
         print("\n[13/13] Predictions ML (prochaine GW)...")
         _ml_parquet = Path(__file__).parent / "data" / "ml_predictions.parquet"
         _sentinel   = Path(__file__).parent / "data" / ".ml_last_run"
-        _snap_ml    = _max_score_date(engine)
+        _snap_ml    = _score_snapshot(engine)
         _skip_ml    = False
         if not _scores_changed and _ml_parquet.exists():
             try:

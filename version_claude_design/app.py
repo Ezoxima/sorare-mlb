@@ -5,6 +5,7 @@ from data_loaders import (
     load_data, load_calendar, load_card_prices, load_ml_predictions,
     load_leaderboard_rewards, load_all_players_market,
     load_upcoming_pitchers, load_injured_players, load_today_games, load_team_codes,
+    load_team_logos, _team_logo_html,
     render_ticker, render_statusbar, compact_multiselect,
     _matchup, _game_date_str, _team_abbr, _load_pp_today,
     PARIS_TZ, FENETRE_OPTIONS, RARITY_ORDER, _DATA_DIR,
@@ -142,14 +143,15 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 .ticker {
   display: flex; align-items: center;
   background: var(--bg-1); border-bottom: 1px solid var(--line);
-  font-size: 11px; font-family: var(--mono);
-  overflow: hidden; height: 34px;
+  font-family: var(--mono);
+  overflow: hidden; height: 46px;
   margin: -0.75rem -1.25rem 1rem;
 }
 .ticker__brand {
   display: flex; align-items: center; gap: 10px;
   padding: 0 16px; height: 100%; border-right: 1px solid var(--line);
-  letter-spacing: 0.08em; font-weight: 600; background: var(--bg-1); flex-shrink: 0; z-index: 2;
+  letter-spacing: 0.08em; font-size: 10px; font-weight: 600;
+  background: var(--bg-1); flex-shrink: 0; z-index: 2;
 }
 .ticker__brand-dot {
   width: 7px; height: 7px; border-radius: 50%;
@@ -159,19 +161,28 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 .ticker__feed { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; }
 .ticker__feed-inner {
-  display: inline-flex; align-items: center; gap: 28px;
-  white-space: nowrap; padding: 0 20px;
-  animation: scroll-feed 70s linear infinite;
+  display: inline-flex; align-items: center; gap: 12px;
+  white-space: nowrap; padding: 0 16px;
+  animation: scroll-feed 80s linear infinite;
 }
 .ticker__feed:hover .ticker__feed-inner { animation-play-state: paused; }
 @keyframes scroll-feed { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-.ticker__item { display: inline-flex; align-items: center; gap: 5px; color: var(--fg-1); }
-.ticker__item .sym { font-weight: 600; color: var(--fg-0); font-size: 10px; }
-.ticker__item .val.pos { color: var(--pos); }
-.ticker__item .val.neg { color: var(--neg); }
-.ticker__item .val.warn { color: var(--warn); }
-.ticker__item .val.info { color: var(--info); }
-.ticker__sep { display: inline-flex; align-items: center; padding: 0 18px; color: var(--accent); font-size: 8px; opacity: 0.5; }
+.ticker__item { display: inline-flex; align-items: center; gap: 3px; }
+.ticker__team {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 3px 6px; min-width: 40px;
+}
+.ticker__team img { display: block; }
+.ticker__abbr { font-size: 8px; font-weight: 700; color: var(--fg-2); letter-spacing: 0.08em; }
+.ticker__score {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 3px 5px; min-width: 38px;
+}
+.ticker__vs { font-size: 7px; color: var(--fg-3); letter-spacing: 0.12em; }
+.ticker__time { font-size: 10px; font-weight: 700; color: var(--info); letter-spacing: 0.04em; }
+.ticker__sep { display: inline-block; width: 1px; height: 24px; background: var(--fg-3); margin: 0 14px; opacity: 1; vertical-align: middle; flex-shrink: 0; }
+.ticker__sep--day { display: inline-flex; align-items: center; margin: 0 16px; vertical-align: middle; flex-shrink: 0; }
+.ticker__sep--day span { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 6px var(--accent); display: inline-block; }
 .ticker__clock {
   display: flex; align-items: center; gap: 12px;
   padding: 0 14px; height: 100%; border-left: 1px solid var(--line);
@@ -520,15 +531,18 @@ if not _games_day.empty:
         set(_games_day["away_team_slug"].dropna())
     )
     _tcodes = load_team_codes()
+    _tlogos = load_team_logos()
     _tgi: dict = {}
     for _, _g in _games_day.iterrows():
         _t  = _g["game_date"].astimezone(PARIS_TZ).strftime("%H:%M")
         _ht = _g.get("home_team_slug") or ""
         _at = _g.get("away_team_slug") or ""
         if _ht:
-            _tgi[_ht] = {"heure": _t, "home_away": "home", "opp": _team_abbr(_at, _tcodes)}
+            _tgi[_ht] = {"heure": _t, "home_away": "home", "opp": _team_abbr(_at, _tcodes),
+                          "opp_slug": _at, "own_slug": _ht, "home_slug": _ht, "away_slug": _at}
         if _at:
-            _tgi[_at] = {"heure": _t, "home_away": "away", "opp": _team_abbr(_ht, _tcodes)}
+            _tgi[_at] = {"heure": _t, "home_away": "away", "opp": _team_abbr(_ht, _tcodes),
+                          "opp_slug": _ht, "own_slug": _at, "home_slug": _ht, "away_slug": _at}
     _slugs_today = {s for s, c in _slug_club.items() if c in _teams_day}
 else:
     _cal_today   = df_calendar[
@@ -537,6 +551,7 @@ else:
     ]
     _slugs_today = set(_cal_today["player_slug"])
     _tgi         = {}
+    _tlogos      = load_team_logos()
 
 df_today = (
     df[df["player_slug"].isin(_slugs_today) & ~df["player_slug"].isin(_injured_slugs)]
@@ -552,8 +567,15 @@ if _tgi:
     def _coup_envoi_live(row):
         gi = _tgi.get(_slug_club.get(row["player_slug"], ""))
         return gi["heure"] if gi else (row.get("coup_envoi") or "—")
-    df_today["matchup"]    = df_today.apply(_matchup_live, axis=1)
-    df_today["coup_envoi"] = df_today.apply(_coup_envoi_live, axis=1)
+    def _gi(row):
+        return _tgi.get(_slug_club.get(row["player_slug"], ""))
+    df_today["matchup"]          = df_today.apply(lambda r: _matchup_live(r), axis=1)
+    df_today["coup_envoi"]       = df_today.apply(lambda r: _coup_envoi_live(r), axis=1)
+    df_today["home_slug"]        = df_today.apply(lambda r: (_gi(r) or {}).get("home_slug", ""), axis=1)
+    df_today["away_slug"]        = df_today.apply(lambda r: (_gi(r) or {}).get("away_slug", ""), axis=1)
+else:
+    df_today["home_slug"] = ""
+    df_today["away_slug"] = ""
 
 _is_map = (
     df_calendar[df_calendar["gallery_manager"] == sel_manager]
@@ -624,6 +646,7 @@ ctx = {
     "df":             df,
     "_injured_slugs": _injured_slugs,
     "_slug_name_map": _slug_name_map,
+    "_tlogos":        _tlogos,
 }
 
 with tab1:

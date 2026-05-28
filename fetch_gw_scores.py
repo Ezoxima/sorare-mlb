@@ -36,6 +36,13 @@ SLEEP_BETWEEN_CALLS = 0.15   # secondes entre chaque appel match
 
 PITCHER_POSITIONS = {"SP", "RP", "baseball_starting_pitcher", "baseball_relief_pitcher"}
 
+# Joueurs two-way : anyGame ne remonte qu'une entrée par joueur par match,
+# donc leur second rôle (ex. DH pour Ohtani) est invisible via cette route.
+# On complète via anyPlayer.allPlayerGameScores après la boucle principale.
+TWO_WAY_PLAYERS = {
+    "shohei-ohtani-19940705",
+}
+
 
 def _position_to_category(position: str | None) -> str:
     if position and position.upper() in {p.upper() for p in PITCHER_POSITIONS}:
@@ -169,6 +176,167 @@ def fetch_game_scores(game_id: str, headers: dict) -> dict:
     return data["data"]["anyGame"]
 
 
+def _to_utc_date(d):
+    """Convertit n'importe quel format de date (str, datetime, tz-aware/naive) en date UTC."""
+    ts = pd.Timestamp(d)
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    else:
+        ts = ts.tz_convert("UTC")
+    return ts.date()
+
+
+def fetch_twoway_supplement(
+    slug: str,
+    gw_game_dates: set,
+    gw_int: int,
+    headers: dict,
+) -> tuple[list, list]:
+    """
+    Complète les données d'un two-way player (ex. Ohtani) pour les dates d'une GW.
+    anyGame ne retourne qu'une entrée par joueur — on passe par anyPlayer pour
+    récupérer toutes ses positions (SP + DH), filtrées sur les dates du GW.
+    Les lignes issues d'anyGame restent prioritaires via drop_duplicates (first).
+    """
+    scores_rows = []
+    details_rows = []
+
+    gw_dates_normalized = {_to_utc_date(d) for d in gw_game_dates}
+    min_gw_date = min(gw_dates_normalized)
+
+    has_next = True
+    end_cursor = ""
+
+    while has_next:
+        query = f"""{{
+          anyPlayer(slug: "{slug}") {{
+            ... on BaseballPlayer {{
+              allPlayerGameScores(after: "{end_cursor}") {{
+                nodes {{
+                  position
+                  score
+                  detailedScore {{
+                    category
+                    points
+                    stat
+                    statTyped {{ shortName }}
+                    statValue
+                  }}
+                  anyPlayerGameStats {{ playedInGame }}
+                  anyGame {{ date }}
+                }}
+                pageInfo {{ hasNextPage endCursor }}
+              }}
+            }}
+          }}
+        }}"""
+
+        data = _api_post({"query": query}, headers)
+        player_data = data["data"]["anyPlayer"]
+        if not player_data:
+            break
+
+        nodes     = player_data["allPlayerGameScores"]["nodes"]
+        page_info = player_data["allPlayerGameScores"]["pageInfo"]
+
+        page_dates = []
+        for node in nodes:
+            raw_date = (node.get("anyGame") or {}).get("date")
+            if not raw_date:
+                continue
+
+            node_date = _to_utc_date(raw_date)
+            page_dates.append(node_date)
+
+            if node_date not in gw_dates_normalized:
+                continue
+
+            played   = (node.get("anyPlayerGameStats") or {}).get("playedInGame", False)
+            position = node.get("position")
+            category = _position_to_category(position)
+
+            scores_rows.append({
+                "player_slug":    slug,
+                "game_date":      raw_date,
+                "gw_int":         gw_int,
+                "category":       category,
+                "score":          node.get("score"),
+                "played_in_game": played,
+            })
+
+            if played:
+                for detail in node.get("detailedScore") or []:
+                    stat_typed = detail.get("statTyped") or {}
+                    details_rows.append({
+                        "player_slug":     slug,
+                        "game_date":       raw_date,
+                        "stat":            detail.get("stat"),
+                        "stat_short_name": stat_typed.get("shortName"),
+                        "category":        detail.get("category") or category,
+                        "stat_value":      detail.get("statValue"),
+                        "points":          detail.get("points"),
+                    })
+
+        # L'API trie du plus récent au plus ancien : arrêt dès qu'on dépasse la GW
+        if page_dates and max(page_dates) < min_gw_date:
+            break
+
+        has_next   = page_info["hasNextPage"]
+        end_cursor = page_info["endCursor"]
+
+    return scores_rows, details_rows
+
+
+# ── Players seen ──────────────────────────────────────────────────────────────
+
+def extract_players_from_game(game_data: dict) -> list:
+    """Extrait (player_slug, display_name, position) depuis les scores d'un match."""
+    rows = []
+    for ps in game_data.get("playerGameScores") or []:
+        player = ps.get("anyPlayer") or {}
+        slug   = player.get("slug")
+        if not slug:
+            continue
+        rows.append({
+            "player_slug":  slug,
+            "display_name": player.get("displayName"),
+            "position":     ps.get("position"),
+        })
+    return rows
+
+
+def store_players_seen(engine, rows: list) -> None:
+    """Upsert dans mlb.players_seen — crée la table si besoin."""
+    if not rows:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS mlb.players_seen (
+                player_slug  TEXT PRIMARY KEY,
+                display_name TEXT,
+                position     TEXT
+            )
+        """))
+    df = pd.DataFrame(rows).drop_duplicates("player_slug")
+
+    def _upsert(table, conn, keys, data_iter):
+        data = [dict(zip(keys, row)) for row in data_iter]
+        if data:
+            stmt = pg_insert(table.table).values(data)
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["player_slug"],
+                set_={
+                    "display_name": stmt.excluded.display_name,
+                    "position":     stmt.excluded.position,
+                },
+            )
+            conn.execute(stmt)
+
+    with engine.begin() as conn:
+        df.to_sql("players_seen", con=conn, schema="mlb",
+                  if_exists="append", index=False, method=_upsert, chunksize=500)
+
+
 # ── Flatten ────────────────────────────────────────────────────────────────────
 
 def flatten_to_rows(fixture: dict, game_meta: dict, game_data: dict) -> tuple[list, list]:
@@ -230,7 +398,7 @@ def store(engine, all_score_rows: list, all_detail_rows: list, gw_int: int) -> N
 
     df_details = pd.DataFrame(all_detail_rows)
     df_details["game_date"] = pd.to_datetime(df_details["game_date"], utc=True)
-    df_details = df_details.drop_duplicates(subset=["player_slug", "game_date", "stat"])
+    df_details = df_details.drop_duplicates(subset=["player_slug", "game_date", "stat", "category"])
 
     # ON CONFLICT DO NOTHING : un même match physique peut apparaître dans plusieurs
     # fixtures Sorare (ex. Opening Series + GW régulière). On skip les doublons.
@@ -279,6 +447,7 @@ if __name__ == "__main__":
 
     all_score_rows  = []
     all_detail_rows = []
+    all_player_rows = []
     game_dates      = []
     total = len(games)
 
@@ -302,11 +471,27 @@ if __name__ == "__main__":
         s_rows, d_rows = flatten_to_rows(fixture, game_meta, game_data)
         all_score_rows.extend(s_rows)
         all_detail_rows.extend(d_rows)
+        all_player_rows.extend(extract_players_from_game(game_data))
         game_dates.append(game_meta["date"])
 
         time.sleep(SLEEP_BETWEEN_CALLS)
 
+    # Supplément two-way players : anyGame manque leur second rôle (ex. Ohtani DH)
+    seen_slugs  = {row["player_slug"] for row in all_score_rows}
+    seen_twoway = seen_slugs & TWO_WAY_PLAYERS
+    if seen_twoway and game_dates:
+        for slug in seen_twoway:
+            print(f"\nSupplement two-way player : {slug}")
+            s_rows, d_rows = fetch_twoway_supplement(
+                slug, set(game_dates), fixture["gw_int"], api_headers
+            )
+            all_score_rows.extend(s_rows)
+            all_detail_rows.extend(d_rows)
+            print(f"  -> {len(s_rows)} scores, {len(d_rows)} stats ajoutés")
+
     print(f"\nTotal : {len(all_score_rows)} lignes joueur/match, {len(all_detail_rows)} lignes stats")
     print("Enregistrement en base...")
     store(engine, all_score_rows, all_detail_rows, fixture["gw_int"])
+    store_players_seen(engine, all_player_rows)
+    print(f"  {len(set(r['player_slug'] for r in all_player_rows))} joueurs enregistrés dans players_seen")
     print("Terminé !")

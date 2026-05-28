@@ -132,7 +132,7 @@ def store_teams(engine, df: pd.DataFrame) -> None:
     print(f"  {len(df)} équipes enregistrées dans mlb.teams")
 
     parquet_path = Path(__file__).parent / "data" / "teams.parquet"
-    df[["team_slug", "team_code"]].to_parquet(parquet_path, index=False)
+    df[["team_slug", "team_code", "picture_url"]].to_parquet(parquet_path, index=False)
     print(f"  Export → {parquet_path}")
 
 

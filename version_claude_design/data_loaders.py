@@ -397,28 +397,81 @@ def load_player_history(player_slug: str, stat: str) -> pd.DataFrame:
 
 
 @st.cache_data(ttl=3600)
-def load_db_stats(stat: str, fenetre: int) -> pd.DataFrame:
-    gs  = pd.read_parquet(_DATA_DIR / "game_scores.parquet")
-    gsd = pd.read_parquet(_DATA_DIR / "game_score_details.parquet")
-    pl  = pd.read_parquet(_DATA_DIR / "players.parquet")
-    gs["game_date"]  = pd.to_datetime(gs["game_date"],  utc=True, errors="coerce")
-    gsd["game_date"] = pd.to_datetime(gsd["game_date"], utc=True, errors="coerce")
-    gs_played = gs[gs["played_in_game"]].copy()
-    gs_played["rk"] = gs_played.groupby("player_slug")["game_date"].rank(ascending=False, method="first").astype(int)
-    gs_f = gs_played[gs_played["rk"] <= fenetre][["player_slug", "game_date"]]
-    gsd_f = gsd[gsd["stat"] == stat][["player_slug", "game_date", "stat_value"]]
-    merged = gs_f.merge(gsd_f, on=["player_slug", "game_date"])
-    if merged.empty:
-        return pd.DataFrame(columns=["player_slug", "display_name", "position_exact", "agg_position", "team_slug", "moyenne", "nb_matchs"])
-    agg = (merged.groupby("player_slug")
-           .agg(moyenne=("stat_value", "mean"), nb_matchs=("game_date", "nunique"))
+def load_db_stats(stat: str, fenetre: int, target: float = 0.0) -> pd.DataFrame:
+    # Préférer le parquet tous-joueurs (20 derniers matchs joués, colonne rk incluse)
+    p_db = _DATA_DIR / "game_score_details_db.parquet"
+    p_gal = _DATA_DIR / "game_score_details.parquet"
+    if p_db.exists():
+        gsd = pd.read_parquet(p_db)
+        recently_active = set(gsd[gsd["rk"] <= 10]["player_slug"])
+        gsd_f = gsd[(gsd["stat"] == stat) & (gsd["rk"] <= fenetre)][
+            ["player_slug", "game_date", "stat_value"]
+        ]
+    else:
+        gs  = pd.read_parquet(_DATA_DIR / "game_scores.parquet")
+        gsd = pd.read_parquet(p_gal)
+        gs["game_date"]  = pd.to_datetime(gs["game_date"],  utc=True, errors="coerce")
+        gsd["game_date"] = pd.to_datetime(gsd["game_date"], utc=True, errors="coerce")
+        gs_played = gs[gs["played_in_game"]].copy()
+        gs_played["rk"] = gs_played.groupby("player_slug")["game_date"].rank(
+            ascending=False, method="first").astype(int)
+        gs_f  = gs_played[gs_played["rk"] <= fenetre][["player_slug", "game_date"]]
+        gsd_f = gsd[gsd["stat"] == stat][["player_slug", "game_date", "stat_value"]]
+        gsd_f = gs_f.merge(gsd_f, on=["player_slug", "game_date"])
+
+    if gsd_f.empty:
+        return pd.DataFrame(columns=["player_slug", "display_name", "position_exact",
+                                     "agg_position", "team_slug", "moyenne", "nb_matchs",
+                                     "nb_success"])
+
+    _t = target if target > 0 else None
+    agg = (gsd_f.groupby("player_slug")
+           .agg(
+               moyenne=("stat_value", "mean"),
+               nb_matchs=("game_date", "nunique"),
+               nb_success=("stat_value", lambda x: (x >= _t).sum() if _t else 0),
+           )
            .reset_index())
-    agg = agg.merge(pl[["player_slug", "display_name", "team_slug", "position_1", "agg_position_1"]], on="player_slug", how="left")
-    agg["display_name"]    = agg["display_name"].fillna(agg["player_slug"])
-    agg["position_exact"]  = agg["position_1"].map(lambda x: POSITION_EXACT.get(x, x) if x else x)
-    agg["agg_position"]    = agg["agg_position_1"].map(lambda x: POSITION_AGG.get(x, x) if x else x)
-    agg["moyenne"]         = agg["moyenne"].round(3)
-    return agg[["player_slug", "display_name", "position_exact", "agg_position", "team_slug", "moyenne", "nb_matchs"]].sort_values("moyenne", ascending=False)
+
+    # Exclure les joueurs sans activité récente (aucun match dans les 10 derniers)
+    if p_db.exists():
+        agg = agg[agg["player_slug"].isin(recently_active)]
+
+    # Métadonnées joueurs : players_seen (tous) enrichi par players (galerie, a team_slug)
+    # Les joueurs galerie absents de players_seen sont ajoutés explicitement.
+    pl = pd.read_parquet(_DATA_DIR / "players.parquet")
+    p_seen = _DATA_DIR / "players_seen.parquet"
+    if p_seen.exists():
+        seen = pd.read_parquet(p_seen)
+        seen_e = seen.merge(
+            pl[["player_slug", "team_slug", "position_1", "agg_position_1"]],
+            on="player_slug", how="left"
+        )
+        seen_e["position_1"]     = seen_e["position_1"].fillna(seen_e["position"])
+        seen_e["agg_position_1"] = seen_e["agg_position_1"].fillna(seen_e["position"])
+        seen_slugs = set(seen["player_slug"])
+        gal_extra  = pl[~pl["player_slug"].isin(seen_slugs)]
+        meta = pd.concat([
+            seen_e[["player_slug", "display_name", "team_slug", "position_1", "agg_position_1"]],
+            gal_extra[["player_slug", "display_name", "team_slug", "position_1", "agg_position_1"]],
+        ], ignore_index=True)
+    else:
+        meta = pl[["player_slug", "display_name", "team_slug", "position_1", "agg_position_1"]].copy()
+
+    agg = agg.merge(meta[["player_slug", "display_name", "team_slug",
+                           "position_1", "agg_position_1"]],
+                    on="player_slug", how="left")
+    agg["display_name"]   = agg["display_name"].fillna(agg["player_slug"])
+    agg["position_exact"] = agg["position_1"].map(lambda x: POSITION_EXACT.get(x, x) if x else x)
+    agg["agg_position"]   = agg["agg_position_1"].map(lambda x: POSITION_AGG.get(x, x) if x else x)
+    agg["moyenne"] = agg["moyenne"].round(3)
+    if target > 0:
+        agg["_ratio"] = agg["nb_success"] / agg["nb_matchs"].clip(lower=1)
+        agg = agg.sort_values(["_ratio", "nb_success", "moyenne"], ascending=False).drop(columns="_ratio")
+    else:
+        agg = agg.sort_values("moyenne", ascending=False)
+    return agg[["player_slug", "display_name", "position_exact", "agg_position",
+                "team_slug", "moyenne", "nb_matchs", "nb_success"]]
 
 
 @st.cache_data(ttl=3600)
@@ -429,6 +482,99 @@ def load_today_games(today_date: str) -> pd.DataFrame:
     g = games[games["game_date"].dt.date == today].copy()
     g = g.sort_values("game_date").reset_index(drop=True)
     return g
+
+
+@st.cache_data(ttl=3600)
+def load_top_db_players(stat_short: str, stat_long: str, fenetre: int,
+                        team_slugs_today: tuple, n: int = 5,
+                        target: float = 0.0, min_matchs: int = 3) -> pd.DataFrame:
+    """Top N joueurs (tous joueurs DB) pour la stat donnée, parmi les équipes qui jouent aujourd'hui."""
+    p_db  = _DATA_DIR / "game_score_details_db.parquet"
+    p_seen = _DATA_DIR / "players_seen.parquet"
+    if not p_db.exists():
+        return pd.DataFrame()
+
+    gsd = pd.read_parquet(p_db, columns=["player_slug", "game_date", "stat", "stat_short_name",
+                                          "stat_value", "rk"])
+    recently_active = set(gsd[gsd["rk"] <= 10]["player_slug"])
+    gsd = gsd[(gsd["stat"] == stat_long) & (gsd["rk"] <= fenetre)]
+    if gsd.empty:
+        return pd.DataFrame()
+
+    _t = target if target > 0 else None
+    agg = (gsd.groupby("player_slug")
+           .agg(moyenne=("stat_value", "mean"), nb_matchs=("game_date", "nunique"),
+                nb_success=("stat_value", lambda x: (x >= _t).sum() if _t else 0))
+           .reset_index())
+    agg = agg[agg["nb_matchs"] >= min_matchs]
+
+    # Filtrer sur les équipes qui jouent aujourd'hui si fourni
+    if team_slugs_today:
+        pl_path = _DATA_DIR / "players.parquet"
+        if pl_path.exists():
+            pl = pd.read_parquet(pl_path, columns=["player_slug", "team_slug"])
+            if p_seen.exists():
+                seen = pd.read_parquet(p_seen, columns=["player_slug"])
+                # Garder tous les slugs connus (gallery + seen), filtrer par équipe uniquement pour gallery
+                agg_gallery = agg.merge(pl[pl["team_slug"].isin(team_slugs_today)], on="player_slug")
+                agg = agg_gallery  # hors galerie : pas de team_slug connu, on ne peut pas filtrer
+            else:
+                agg = agg.merge(pl[pl["team_slug"].isin(team_slugs_today)], on="player_slug")
+
+    agg = agg[agg["player_slug"].isin(recently_active)]
+
+    if agg.empty:
+        return pd.DataFrame()
+
+    agg["moyenne"] = agg["moyenne"].round(2)
+    if target > 0:
+        agg["_ratio"] = agg["nb_success"] / agg["nb_matchs"].clip(lower=1)
+        agg = agg.sort_values(["_ratio", "nb_success", "moyenne"], ascending=False).drop(columns="_ratio")
+    else:
+        agg = agg.sort_values("moyenne", ascending=False)
+    agg = agg.head(n).reset_index(drop=True)
+
+    # Ajouter les noms
+    if p_seen.exists():
+        seen = pd.read_parquet(p_seen, columns=["player_slug", "display_name"])
+        agg = agg.merge(seen, on="player_slug", how="left")
+    pl_path = _DATA_DIR / "players.parquet"
+    if pl_path.exists():
+        pl = pd.read_parquet(pl_path, columns=["player_slug", "display_name"])
+        agg = agg.merge(pl.rename(columns={"display_name": "_dn_gal"}), on="player_slug", how="left")
+        agg["display_name"] = agg.get("display_name", pd.Series(dtype=str)).fillna(
+            agg.get("_dn_gal", pd.Series(dtype=str))
+        ).fillna(agg["player_slug"])
+        if "_dn_gal" in agg.columns:
+            agg = agg.drop(columns=["_dn_gal"])
+    else:
+        agg["display_name"] = agg.get("display_name", agg["player_slug"])
+
+    return agg[["player_slug", "display_name", "moyenne", "nb_matchs", "nb_success"]]
+
+
+@st.cache_data(ttl=3600)
+def load_db_sparklines(player_slugs: tuple, stat_short: str, n_games: int = 10) -> dict:
+    """Sparklines depuis game_score_details_db.parquet (tous joueurs). Fallback vers gallery."""
+    p = _DATA_DIR / "game_score_details_db.parquet"
+    if not p.exists():
+        return load_stat_sparklines(player_slugs, stat_short, n_games)
+    if not player_slugs:
+        return {}
+    gsd = pd.read_parquet(p, columns=["player_slug", "game_date", "stat_short_name", "stat_value", "rk"])
+    gsd = gsd[
+        gsd["player_slug"].isin(player_slugs) &
+        (gsd["stat_short_name"] == stat_short) &
+        (gsd["rk"] <= n_games)
+    ]
+    if gsd.empty:
+        return {}
+    gsd["game_date"] = pd.to_datetime(gsd["game_date"], utc=True, errors="coerce")
+    gsd = gsd.sort_values(["player_slug", "game_date"])
+    return {
+        slug: [max(0.0, float(v)) for v in grp["stat_value"].fillna(0).tolist()]
+        for slug, grp in gsd.groupby("player_slug")
+    }
 
 
 @st.cache_data(ttl=3600)
@@ -466,6 +612,14 @@ def load_team_codes() -> dict:
         return {}
     df = pd.read_parquet(p, columns=["team_slug", "team_code"])
     return dict(zip(df["team_slug"], df["team_code"].fillna("")))
+
+
+def load_team_logos() -> dict:
+    p = _DATA_DIR / "teams.parquet"
+    if not p.exists():
+        return {}
+    df = pd.read_parquet(p, columns=["team_slug", "picture_url"])
+    return dict(zip(df["team_slug"], df["picture_url"].fillna("")))
 
 
 @st.cache_data(ttl=3600)
@@ -594,26 +748,51 @@ def gen_sparkline_svg(values, w=160, h=24, color="var(--accent)") -> str:
     )
 
 
+def _team_logo_html(slug: str, logos: dict, codes: dict, height: int = 15) -> str:
+    url = logos.get(slug, "")
+    if url:
+        style = (f"height:{height}px;width:auto;vertical-align:middle;"
+                 f"display:inline-block;object-fit:contain;flex-shrink:0")
+        return f'<img src="{url}" style="{style}">'
+    code = codes.get(slug) or _team_abbr(slug, codes)
+    return f'<span class="sym">{code}</span>'
+
+
 def render_ticker(df_all, sel_manager, day) -> None:
     df_games = load_today_games(str(day))
     team_codes = load_team_codes()
+    team_logos = load_team_logos()
+
+    def _team_card(slug: str) -> str:
+        code = team_codes.get(slug) or _team_abbr(slug, team_codes)
+        url  = team_logos.get(slug, "")
+        logo = (f'<img src="{url}" style="height:20px;width:20px;object-fit:contain;display:block">'
+                if url else f'<span style="font-size:11px;font-weight:700;color:var(--fg-1)">{code}</span>')
+        return (f'<span class="ticker__team">{logo}'
+                f'<span class="ticker__abbr">{code}</span></span>')
+
     if df_games.empty:
-        game_items = '<span class="ticker__item"><span class="sym">MLB</span><span class="val info">Aucun match aujourd\'hui</span></span>'
+        game_items = ('<span class="ticker__item">'
+                      '<span style="font-size:10px;color:var(--fg-3)">Aucun match aujourd\'hui</span>'
+                      '</span>')
     else:
         parts = []
         for _, g in df_games.iterrows():
-            home = _team_abbr(g.get("home_team_slug", ""), team_codes)
-            away = _team_abbr(g.get("away_team_slug", ""), team_codes)
+            home_slug = g.get("home_team_slug", "")
+            away_slug = g.get("away_team_slug", "")
             t = g["game_date"].astimezone(PARIS_TZ).strftime("%H:%M")
             parts.append(
                 f'<span class="ticker__item">'
-                f'<span class="sym">{home}</span>'
-                f'<span style="color:var(--fg-3);font-size:10px">vs</span>'
-                f'<span class="sym">{away}</span>'
-                f'<span class="val info">{t}</span>'
+                f'{_team_card(home_slug)}'
+                f'<span class="ticker__score">'
+                f'<span class="ticker__vs">VS</span>'
+                f'<span class="ticker__time">{t}</span>'
+                f'</span>'
+                f'{_team_card(away_slug)}'
                 f'</span>'
             )
-        sep = '<span class="ticker__sep">&#9670;</span>'
+        sep     = '<span class="ticker__sep"></span>'
+        day_sep = '<span class="ticker__sep--day"><span></span></span>'
         if len(parts) >= 2:
             times = df_games["game_date"].tolist()
             n = len(times)
@@ -624,7 +803,7 @@ def render_ticker(df_all, sel_manager, day) -> None:
             ]
             start = (gaps.index(max(gaps)) + 1) % n
             parts = parts[start:] + parts[:start]
-            game_items = "".join(parts) + sep
+            game_items = sep.join(parts) + day_sep
         else:
             game_items = "".join(parts)
 
@@ -651,7 +830,7 @@ def render_statusbar(last_upd: str, filters_summary: str) -> None:
     )
 
 
-def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | None = None, picture_url: str | None = None, target: float = 0.0) -> str:
+def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | None = None, picture_url: str | None = None, target: float = 0.0, show_pred: bool = True, card_suffix: str = "") -> str:
     rar_raw  = (row["card_display_rarity"] or "").lower()
     rar_css  = {"limited": "r-limited", "rare": "r-rare", "super_rare": "r-superrare", "unique": "r-unique"}.get(rar_raw, "")
     rank_css = ["r1", "r2", "r3"][rank] if rank < 3 else ""
@@ -662,7 +841,7 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
     coup     = row.get("coup_envoi", "—")
     rar_lbl  = (row["card_display_rarity"] or "").upper()
     is_elig  = row.get("in_season_eligible")
-    is_tag   = '<span class="tag is">IS</span>' if is_elig is True else ('<span class="tag classic">OOS</span>' if is_elig is False else "")
+    is_tag   = '<span class="tag is">IS</span>' if is_elig is True else ('<span class="tag classic">CLASSIC</span>' if is_elig is False else "")
     pp_tag   = '<span class="tag pp">PP</span>' if row.get("is_pp") else ""
     rar_tag  = f'<span class="tag rarity-{rar_raw}">{rar_lbl}</span>' if rar_lbl else ""
     monogram = row["player_name"].split()[-1][:3].upper()
@@ -694,13 +873,17 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
         if picture_url else
         f'<div class="pcard__monogram">{monogram}</div>'
     )
+    _ml_cell = (
+        f'<div class="cell"><div class="k">ML Pred</div><div class="v">{pred_str}</div></div>'
+        if show_pred else ''
+    )
 
     return (
         f'<div class="{card_cls}">'
         f'<div class="pcard__hd">'
         f'<span class="pcard__rank {rank_css}">{rank_lbl}</span>'
         f'<div class="pcard__head-info">'
-        f'<div class="pcard__name">{row["player_name"]}</div>'
+        f'<div class="pcard__name">{row["player_name"]}{card_suffix}</div>'
         f'<div class="pcard__sub">{pos} · {matchup}</div>'
         f'</div>'
         f'<span class="pcard__rarity-dot" style="background:var(--{rar_css},#888)"></span>'
@@ -711,7 +894,7 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
         f'</div>'
         f'<div class="pcard__row">'
         f'<div class="cell"><div class="k">{stat_key}</div>{stat_val_html}</div>'
-        f'<div class="cell"><div class="k">ML Pred</div><div class="v">{pred_str}</div></div>'
+        f'{_ml_cell}'
         f'<div class="cell"><div class="k">Matchs</div><div class="v dim">{int(row["nb_matchs"])}</div></div>'
         f'</div>'
         f'<div class="pcard__meta">{rar_tag}{is_tag}{pp_tag}'

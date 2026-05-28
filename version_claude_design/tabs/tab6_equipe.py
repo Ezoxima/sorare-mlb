@@ -205,7 +205,7 @@ def render(ctx: dict) -> None:
                 return "—"
             r    = _cl.get(x, {})
             pos  = r.get("position_exact") or "?"
-            is_  = "IS" if r.get("is_eligible") else "OOS"
+            is_  = "IS" if r.get("is_eligible") else "CLASSIC"
             try:
                 sc = float(r.get("proj_score_eff") or r.get("proj_score") or 0.0)
             except (TypeError, ValueError):
