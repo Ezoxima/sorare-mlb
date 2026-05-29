@@ -161,10 +161,12 @@ def _ensure_schema(engine) -> None:
 # ── Lecture DB ─────────────────────────────────────────────────────────────────
 
 def get_start_date(engine) -> datetime | None:
-    """MAX(game_date) - 1 jour depuis mlb.game_scores. None si table vide."""
+    """MAX(game_date) - 14 jours depuis mlb.game_scores. None si table vide.
+    La fenêtre de 14 jours garantit de rattraper les jours manqués si le pipeline
+    a sauté des exécutions (ex: jours entre deux fetchs successifs)."""
     with engine.connect() as conn:
         row = conn.execute(text(
-            "SELECT MAX(game_date) - INTERVAL '1 day' FROM mlb.game_scores"
+            "SELECT MAX(game_date) - INTERVAL '14 days' FROM mlb.game_scores"
         )).fetchone()
     val = row[0] if row else None
     if val is None:
@@ -288,6 +290,13 @@ def store_scores(engine, all_scores: list, all_details: list) -> None:
     def _upsert_scores(table, conn, keys, data_iter):
         rows = [dict(zip(keys, row)) for row in data_iter]
         if rows:
+            # Dédupliquer sur la PK dans le chunk (garde le score le plus élevé)
+            seen: dict = {}
+            for r in rows:
+                pk = (r["player_slug"], r["game_date"], r["category"])
+                if pk not in seen or (r.get("score") or 0) > (seen[pk].get("score") or 0):
+                    seen[pk] = r
+            rows = list(seen.values())
             stmt = pg_insert(table.table).values(rows)
             conn.execute(stmt.on_conflict_do_update(
                 index_elements=["player_slug", "game_date", "category"],

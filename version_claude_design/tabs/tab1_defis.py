@@ -30,7 +30,7 @@ def render(ctx: dict) -> None:
     else:
         _tab1_day_label = now_paris.strftime("%A %d %B").capitalize()
 
-    _f1, _f2 = st.columns(2)
+    _f1, _f2, _f3 = st.columns(3)
     _postes_dispo = sorted(df_today["position_agg"].dropna().unique())
     _tab1_saison = _f1.selectbox(
         "Saison", ["Tous", "IS", "Classic"], key="tab1_saison"
@@ -38,6 +38,9 @@ def render(ctx: dict) -> None:
     _tab1_poste = _f2.selectbox(
         "Poste", ["Tous"] + _postes_dispo, key="tab1_poste"
     )
+    _tab1_all_games = _f3.selectbox(
+        "Tendances", ["Matchs joués", "Tous les matchs"], key="tab1_all_games"
+    ) == "Tous les matchs"
 
     df_view = df_today.copy()
     if _tab1_saison == "IS":
@@ -94,7 +97,8 @@ f'<span class="pill accent">{_tab1_day_label}</span>'
             unsafe_allow_html=True,
         )
         _t5_slugs   = tuple(_df_top5["player_slug"].tolist())
-        _t5_sparks  = load_db_sparklines(_t5_slugs, sel_stat_label, n_games=fenetre_int)
+        _t5_sparks  = load_db_sparklines(_t5_slugs, sel_stat_label, n_games=fenetre_int,
+                                         include_all_games=_tab1_all_games)
         _t5_hdr     = ("font-family:var(--mono);font-size:9px;letter-spacing:0.12em;"
                        "text-transform:uppercase;color:var(--fg-3);padding:4px 0 3px;"
                        "border-bottom:1px solid var(--line)")
@@ -147,7 +151,9 @@ f'<span class="pill accent">{_tab1_day_label}</span>'
         unsafe_allow_html=True,
     )
     _spark_map = load_stat_sparklines(
-        tuple(df_view["player_slug"].tolist()), sel_stat_label
+        tuple(df_view["player_slug"].tolist()), sel_stat_label,
+        n_games=fenetre_int,
+        include_all_games=_tab1_all_games,
     )
 
     if target > 0:

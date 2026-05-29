@@ -554,11 +554,12 @@ def load_top_db_players(stat_short: str, stat_long: str, fenetre: int,
 
 
 @st.cache_data(ttl=3600)
-def load_db_sparklines(player_slugs: tuple, stat_short: str, n_games: int = 10) -> dict:
+def load_db_sparklines(player_slugs: tuple, stat_short: str, n_games: int = 10,
+                       include_all_games: bool = False) -> dict:
     """Sparklines depuis game_score_details_db.parquet (tous joueurs). Fallback vers gallery."""
     p = _DATA_DIR / "game_score_details_db.parquet"
     if not p.exists():
-        return load_stat_sparklines(player_slugs, stat_short, n_games)
+        return load_stat_sparklines(player_slugs, stat_short, n_games, include_all_games)
     if not player_slugs:
         return {}
     gsd = pd.read_parquet(p, columns=["player_slug", "game_date", "stat_short_name", "stat_value", "rk"])
@@ -567,9 +568,37 @@ def load_db_sparklines(player_slugs: tuple, stat_short: str, n_games: int = 10) 
         (gsd["stat_short_name"] == stat_short) &
         (gsd["rk"] <= n_games)
     ]
+    gsd["game_date"] = pd.to_datetime(gsd["game_date"], utc=True, errors="coerce")
+
+    if include_all_games:
+        p_games = _DATA_DIR / "games.parquet"
+        p_pl    = _DATA_DIR / "players.parquet"
+        if p_games.exists() and p_pl.exists():
+            pl    = pd.read_parquet(p_pl, columns=["player_slug", "team_slug"])
+            games = pd.read_parquet(p_games, columns=["game_date", "home_team_slug", "away_team_slug"])
+            games["game_date"] = pd.to_datetime(games["game_date"], utc=True, errors="coerce")
+            now   = pd.Timestamp.now(tz="UTC")
+            games = games[games["game_date"] < now]
+            result = {}
+            for slug in player_slugs:
+                team_row = pl[pl["player_slug"] == slug]
+                if team_row.empty:
+                    pg = gsd[gsd["player_slug"] == slug].sort_values("game_date").tail(n_games)
+                    result[slug] = [max(0.0, float(v)) for v in pg["stat_value"].fillna(0).tolist()]
+                    continue
+                team_slug = team_row.iloc[0]["team_slug"]
+                team_gms  = (games[(games["home_team_slug"] == team_slug) |
+                                   (games["away_team_slug"] == team_slug)]
+                             .sort_values("game_date", ascending=False)
+                             .head(n_games)
+                             .sort_values("game_date")[["game_date"]])
+                p_stats = gsd[gsd["player_slug"] == slug][["game_date", "stat_value"]]
+                merged  = team_gms.merge(p_stats, on="game_date", how="left")
+                result[slug] = [max(0.0, float(v)) for v in merged["stat_value"].fillna(0).tolist()]
+            return result
+
     if gsd.empty:
         return {}
-    gsd["game_date"] = pd.to_datetime(gsd["game_date"], utc=True, errors="coerce")
     gsd = gsd.sort_values(["player_slug", "game_date"])
     return {
         slug: [max(0.0, float(v)) for v in grp["stat_value"].fillna(0).tolist()]
@@ -578,15 +607,44 @@ def load_db_sparklines(player_slugs: tuple, stat_short: str, n_games: int = 10) 
 
 
 @st.cache_data(ttl=3600)
-def load_stat_sparklines(player_slugs: tuple, stat_short: str, n_games: int = 10) -> dict:
+def load_stat_sparklines(player_slugs: tuple, stat_short: str, n_games: int = 10,
+                         include_all_games: bool = False) -> dict:
     p = _DATA_DIR / "game_score_details.parquet"
     if not p.exists() or not player_slugs:
         return {}
     gsd = pd.read_parquet(p, columns=["player_slug", "game_date", "stat_short_name", "stat_value"])
     gsd = gsd[gsd["player_slug"].isin(player_slugs) & (gsd["stat_short_name"] == stat_short)]
+    gsd["game_date"] = pd.to_datetime(gsd["game_date"], utc=True, errors="coerce")
+
+    if include_all_games:
+        p_games = _DATA_DIR / "games.parquet"
+        p_pl    = _DATA_DIR / "players.parquet"
+        if p_games.exists() and p_pl.exists():
+            pl    = pd.read_parquet(p_pl, columns=["player_slug", "team_slug"])
+            games = pd.read_parquet(p_games, columns=["game_date", "home_team_slug", "away_team_slug"])
+            games["game_date"] = pd.to_datetime(games["game_date"], utc=True, errors="coerce")
+            now   = pd.Timestamp.now(tz="UTC")
+            games = games[games["game_date"] < now]
+            result = {}
+            for slug in player_slugs:
+                team_row = pl[pl["player_slug"] == slug]
+                if team_row.empty:
+                    pg = gsd[gsd["player_slug"] == slug].sort_values("game_date").tail(n_games)
+                    result[slug] = [max(0.0, float(v)) for v in pg["stat_value"].fillna(0).tolist()]
+                    continue
+                team_slug = team_row.iloc[0]["team_slug"]
+                team_gms  = (games[(games["home_team_slug"] == team_slug) |
+                                   (games["away_team_slug"] == team_slug)]
+                             .sort_values("game_date", ascending=False)
+                             .head(n_games)
+                             .sort_values("game_date")[["game_date"]])
+                p_stats = gsd[gsd["player_slug"] == slug][["game_date", "stat_value"]]
+                merged  = team_gms.merge(p_stats, on="game_date", how="left")
+                result[slug] = [max(0.0, float(v)) for v in merged["stat_value"].fillna(0).tolist()]
+            return result
+
     if gsd.empty:
         return {}
-    gsd["game_date"] = pd.to_datetime(gsd["game_date"], utc=True, errors="coerce")
     gsd["rk"] = gsd.groupby("player_slug")["game_date"].rank(ascending=False, method="first").astype(int)
     gsd = gsd[gsd["rk"] <= n_games].sort_values(["player_slug", "game_date"])
     return {
