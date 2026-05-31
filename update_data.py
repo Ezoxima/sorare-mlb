@@ -392,11 +392,14 @@ def precompute_gallery_stats(engine) -> None:
                 ORDER BY player_slug, id_manager, card_display_rarity
             ),
             qualifying_games AS MATERIALIZED (
-                SELECT gs.player_slug, gs.game_date,
-                       ROW_NUMBER() OVER (PARTITION BY gs.player_slug ORDER BY gs.game_date DESC) AS rk
-                FROM mlb.game_scores gs
-                WHERE gs.played_in_game = true
-                  AND gs.player_slug IN (SELECT DISTINCT player_slug FROM gallery)
+                SELECT player_slug, game_date,
+                       ROW_NUMBER() OVER (PARTITION BY player_slug ORDER BY game_date DESC) AS rk
+                FROM (
+                    SELECT DISTINCT gs.player_slug, gs.game_date
+                    FROM mlb.game_scores gs
+                    WHERE gs.played_in_game = true
+                      AND gs.player_slug IN (SELECT DISTINCT player_slug FROM gallery)
+                ) deduped
             ),
             w AS MATERIALIZED (
                 SELECT g.player_slug, g.id_manager, g.gallery_manager, g.player_name,
@@ -601,8 +604,11 @@ def export_to_parquet(engine) -> None:
             WITH ranked AS (
                 SELECT player_slug, game_date,
                        ROW_NUMBER() OVER (PARTITION BY player_slug ORDER BY game_date DESC) AS rk
-                FROM mlb.game_scores
-                WHERE played_in_game = true AND player_slug = ANY(:slugs)
+                FROM (
+                    SELECT DISTINCT player_slug, game_date
+                    FROM mlb.game_scores
+                    WHERE played_in_game = true AND player_slug = ANY(:slugs)
+                ) deduped
             )
             SELECT gsd.player_slug, gsd.game_date, gsd.stat, gsd.stat_short_name,
                    gsd.category, gsd.stat_value
@@ -662,8 +668,11 @@ def export_to_parquet(engine) -> None:
                        ROW_NUMBER() OVER (
                            PARTITION BY player_slug ORDER BY game_date DESC
                        ) AS rk
-                FROM mlb.game_scores
-                WHERE played_in_game = true
+                FROM (
+                    SELECT DISTINCT player_slug, game_date
+                    FROM mlb.game_scores
+                    WHERE played_in_game = true
+                ) deduped
             )
             SELECT gsd.player_slug, gsd.game_date, gsd.stat, gsd.stat_short_name,
                    gsd.category, gsd.stat_value, r.rk
