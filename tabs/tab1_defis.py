@@ -330,9 +330,14 @@ div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] div[da
                     else ('<span class="tag classic" style="margin:0">CLASSIC</span>'
                           if row.get("in_season_eligible") is False else ""))
         _pp_tag  = '<span class="tag pp" style="margin:0">PP</span>' if row.get("is_pp") else ""
-        _spark   = gen_bar_sparkline_svg(_spark_map.get(_slug, []), target=target)
-        _moy     = (str(int(row.get("nb_objectif", 0))) if target > 0
-                    else f'{row["moyenne"]:.2f}')
+        _spark_vals = _spark_map.get(_slug, [])
+        _spark   = gen_bar_sparkline_svg(_spark_vals, target=target)
+        if target > 0:
+            _moy = str(int(row.get("nb_objectif", 0)))
+        elif _spark_vals:
+            _moy = f'{sum(_spark_vals) / len(_spark_vals):.2f}'
+        else:
+            _moy = f'{row["moyenne"]:.2f}'
         _matchs  = int(row["nb_matchs"])
         _heure     = row.get("coup_envoi") or "—"
         _home_slug = row.get("home_slug") or ""

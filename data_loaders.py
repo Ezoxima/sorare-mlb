@@ -914,6 +914,10 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
             f'<span style="font-size:10px;color:var(--fg-2);font-weight:400">/{n_total}</span></div>'
         )
         stat_key = "Objectif"
+    elif spark_values:
+        moy = sum(spark_values) / len(spark_values)
+        stat_val_html = f'<div class="v pos">{moy:.2f}</div>'
+        stat_key = stat_label
     else:
         stat_val_html = f'<div class="v pos">{row["moyenne"]:.2f}</div>'
         stat_key = stat_label
