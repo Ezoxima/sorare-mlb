@@ -50,7 +50,7 @@ MOIS_FR = ["", "jan", "fév", "mar", "avr", "mai", "jun",
 
 # ── Chemins ────────────────────────────────────────────────────────────────────
 
-_DATA_DIR     = Path(__file__).parent.parent / "data"
+_DATA_DIR     = Path(__file__).parent / "data"
 _LINEUPS_FILE = _DATA_DIR / "saved_lineups.json"
 
 # ── API ────────────────────────────────────────────────────────────────────────
