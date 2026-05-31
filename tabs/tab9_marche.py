@@ -156,7 +156,8 @@ def render(ctx: dict) -> None:
 
     _sort_key11 = _sort_map11.get(_sort11, f"ratio_{_rar11_key}")
     if _sort_key11 in _df11.columns:
-        _df11 = _df11.sort_values(_sort_key11, ascending=False, na_position="last")
+        _asc11 = _sort11.startswith("Prix")
+        _df11 = _df11.sort_values(_sort_key11, ascending=_asc11, na_position="last")
 
     _show_cols11 = ["player_name", "position_agg", "team_slug", "avg_last_x"]
     _display_rename11 = {

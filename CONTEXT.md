@@ -126,3 +126,4 @@ Do not suggest re-introducing a global ML model unless the user asks.
 - Sorare's marketplace credit discount cannot be retrieved via API (confirmed with Sorare support)
 - `ml_predictions.parquet` stores `pred_*` values per game, not per GW — the app scales by N
 - Arena "Libre" slot accepts only hitter positions (CI/MI/OF), not pitchers
+- **Arena competitions do NOT apply card_power (XP bonus)** — `proj_score_eff` in Arena equals `proj_score` (no multiplication). This is intentional per Sorare Arena rules. Only Compétitions (Champions/Hot Streak/Challenger) use card_power.

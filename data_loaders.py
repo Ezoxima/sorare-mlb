@@ -155,6 +155,129 @@ def load_all_players_market() -> pd.DataFrame:
     return df
 
 
+_SORARE_API = "https://api.sorare.com/graphql"
+_TASKS_QUERY = """
+{
+  currentUser {
+    taskGroup(slug: "play") {
+      myTasks(sport: BASEBALL) {
+        __typename id title description progress target
+        periodicity genre aasmState expired
+        possibleRewardConfigsIconUrl
+        rewardConfigs {
+          __typename
+          ... on CardShardRewardConfig { quantity configRarity }
+          ... on ConversionCreditRewardConfig {
+            maxDiscount { usdCents } percentageDiscount
+          }
+        }
+        ... on DecisivePlayerPickerTask {
+          maxAppearancesCount
+          taskAppearances {
+            status locked index reachedStatThreshold { stat }
+            card {
+              pictureUrl rarityTyped
+              anyPlayer { slug displayName }
+            }
+            playerGameScore { score scoreStatus }
+            task {
+              ... on DecisivePlayerPickerTask {
+                statThresholds { stat }
+              }
+            }
+          }
+        }
+        ... on ThresholdsStreakTask {
+          engaged rarity
+          currentThreshold { score }
+          currentThresholdStatus { liveScore state claimableAt }
+        }
+      }
+    }
+  }
+}
+"""
+
+_STAT_LABEL_MAP = {
+    "hitting_singles": "1B", "hitting_doubles": "2B", "hitting_triples": "3B",
+    "hitting_home_runs": "HR", "hitting_runs": "R", "hitting_rbi": "RBI",
+    "hitting_stolen_bases": "SB", "hitting_walks": "BB",
+    "hitting_strikeouts": "SO", "hitting_hit_by_pitch": "HBP",
+    "pitching_innings_pitched": "IP", "pitching_strikeouts": "SO",
+    "pitching_wins": "WIN", "pitching_saves": "SAV", "pitching_holds": "HLD",
+    "pitching_earned_runs": "ER", "pitching_hits_allowed": "HA",
+}
+
+
+@st.cache_data(ttl=300)
+def load_sorare_tasks(rarity: str = "limited") -> list:
+    load_dotenv(dotenv_path=Path(__file__).parent / ".." / ".env")
+    jwt = os.getenv("SORARE_JWT", "")
+    if not jwt:
+        return []
+    query = _TASKS_QUERY.replace("myTasks(sport: BASEBALL)",
+                                  f"myTasks(sport: BASEBALL, rarity: {rarity})")
+    try:
+        resp = requests.post(
+            _SORARE_API,
+            json={"query": query},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {jwt}",
+                "JWT-AUD": "Ezox_api",
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        raw = (data.get("data") or {}).get("currentUser", {})
+        raw = (raw.get("taskGroup") or {}).get("myTasks", [])
+        tasks = []
+        for t in raw:
+            if t.get("expired") or t.get("aasmState") not in ("READY", "IN_PROGRESS"):
+                continue
+            appearances = []
+            for ap in (t.get("taskAppearances") or []):
+                card = ap.get("card") or {}
+                player = card.get("anyPlayer") or {}
+                pgs = ap.get("playerGameScore") or {}
+                thresholds = ((ap.get("task") or {}).get("statThresholds") or [])
+                stats = [_STAT_LABEL_MAP.get(th["stat"], th["stat"]) for th in thresholds]
+                appearances.append({
+                    "player_slug":  player.get("slug", ""),
+                    "player_name":  player.get("displayName", ""),
+                    "avatar_url":   card.get("pictureUrl", ""),
+                    "rarity":       card.get("rarityTyped", ""),
+                    "score":        pgs.get("score", 0.0),
+                    "score_status": pgs.get("scoreStatus", ""),
+                    "reached":      bool(ap.get("reachedStatThreshold")),
+                    "locked":       ap.get("locked", False),
+                    "stats":        stats,
+                })
+            appearances.sort(key=lambda x: x.get("index", 0) if isinstance(x.get("index"), int) else 0)
+            tasks.append({
+                "typename":     t.get("__typename", ""),
+                "id":           t.get("id", ""),
+                "title":        t.get("title", ""),
+                "description":  t.get("description", ""),
+                "progress":     t.get("progress", 0),
+                "target":       t.get("target", 1),
+                "periodicity":  t.get("periodicity"),
+                "genre":        t.get("genre", ""),
+                "reward_icon":  t.get("possibleRewardConfigsIconUrl", ""),
+                "max_slots":    t.get("maxAppearancesCount", 3),
+                "appearances":  appearances,
+                # streak specific
+                "live_score":   ((t.get("currentThresholdStatus") or {}).get("liveScore")),
+                "streak_target": ((t.get("currentThreshold") or {}).get("score")),
+                "streak_state":  ((t.get("currentThresholdStatus") or {}).get("state")),
+                "engaged":       t.get("engaged", False),
+            })
+        return tasks
+    except Exception:
+        return []
+
+
 @st.cache_data(ttl=3600)
 def load_upcoming_pitchers() -> tuple[pd.DataFrame, int]:
     """Retourne (df_games, gw_int) pour le prochain fixture CLASSIC composable."""
@@ -484,6 +607,64 @@ def load_today_games(today_date: str) -> pd.DataFrame:
     return g
 
 
+@st.cache_data(ttl=7200)
+def load_pitcher_stat_factors(stat_key: str, n_games: int = 30) -> "tuple[dict, float]":
+    """
+    Pour une stat HITTING, retourne (factors, league_avg) où:
+    - factors: {pitcher_slug: factor} — factor = avg_accordé / league_avg
+    - league_avg: float, moyenne ligue par match
+    Factor > 1 → pitcher concède plus que la moyenne (favorable pour le frappeur).
+    Nécessite au moins 5 matchs par pitcher pour être inclus.
+    """
+    try:
+        gsd   = pd.read_parquet(_DATA_DIR / "game_score_details_db.parquet")
+        games = pd.read_parquet(_DATA_DIR / "games.parquet")
+        pl    = pd.read_parquet(_DATA_DIR / "players.parquet")
+    except Exception:
+        return {}, 0.0
+
+    gsd["game_date"]   = pd.to_datetime(gsd["game_date"],   utc=True, errors="coerce")
+    games["game_date"] = pd.to_datetime(games["game_date"], utc=True, errors="coerce")
+
+    hits = (
+        gsd[(gsd["stat"] == stat_key) & (gsd["category"] == "HITTING")]
+        [["player_slug", "game_date", "stat_value"]]
+        .merge(pl[["player_slug", "team_slug"]], on="player_slug", how="left")
+        .dropna(subset=["team_slug"])
+    )
+    if hits.empty:
+        return {}, 0.0
+
+    g_home = games[["game_date", "away_team_slug", "home_probable_pitcher"]].dropna(subset=["home_probable_pitcher"])
+    g_away = games[["game_date", "home_team_slug", "away_probable_pitcher"]].dropna(subset=["away_probable_pitcher"])
+
+    mh = (hits.merge(g_home, left_on=["game_date", "team_slug"], right_on=["game_date", "away_team_slug"])
+               .rename(columns={"home_probable_pitcher": "pitcher_slug"}))
+    ma = (hits.merge(g_away, left_on=["game_date", "team_slug"], right_on=["game_date", "home_team_slug"])
+               .rename(columns={"away_probable_pitcher": "pitcher_slug"}))
+
+    all_mu = pd.concat([mh[["pitcher_slug", "game_date", "stat_value"]],
+                        ma[["pitcher_slug", "game_date", "stat_value"]]])
+    if all_mu.empty:
+        return {}, 0.0
+
+    per_game = (
+        all_mu.groupby(["pitcher_slug", "game_date"])["stat_value"].sum()
+        .reset_index().sort_values("game_date")
+    )
+    per_game = per_game.groupby("pitcher_slug").tail(n_games)
+    counts   = per_game.groupby("pitcher_slug")["stat_value"].count()
+    per_game = per_game[per_game["pitcher_slug"].isin(counts[counts >= 5].index)]
+
+    pitcher_avg = per_game.groupby("pitcher_slug")["stat_value"].mean()
+    league_avg  = float(pitcher_avg.mean()) if not pitcher_avg.empty else 0.0
+    if league_avg <= 0:
+        return {}, 0.0
+
+    factors = (pitcher_avg / league_avg).round(3).to_dict()
+    return factors, round(league_avg, 2)
+
+
 @st.cache_data(ttl=3600)
 def load_top_db_players(stat_short: str, stat_long: str, fenetre: int,
                         team_slugs_today: tuple, n: int = 5,
@@ -550,7 +731,10 @@ def load_top_db_players(stat_short: str, stat_long: str, fenetre: int,
     else:
         agg["display_name"] = agg.get("display_name", agg["player_slug"])
 
-    return agg[["player_slug", "display_name", "moyenne", "nb_matchs", "nb_success"]]
+    _ret_cols = ["player_slug", "display_name", "moyenne", "nb_matchs", "nb_success"]
+    if "team_slug" in agg.columns:
+        _ret_cols = ["player_slug", "display_name", "team_slug", "moyenne", "nb_matchs", "nb_success"]
+    return agg[_ret_cols]
 
 
 @st.cache_data(ttl=3600)
@@ -915,7 +1099,8 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
         )
         stat_key = "Objectif"
     elif spark_values:
-        moy = sum(spark_values) / len(spark_values)
+        _sv = [v for v in spark_values if v is not None and v == v]
+        moy = sum(_sv) / len(_sv) if _sv else 0.0
         stat_val_html = f'<div class="v pos">{moy:.2f}</div>'
         stat_key = stat_label
     else:
@@ -945,7 +1130,8 @@ def render_terminal_card(rank: int, row, stat_label: str, spark_values: list | N
         f'<div class="pcard__hd">'
         f'<span class="pcard__rank {rank_css}">{rank_lbl}</span>'
         f'<div class="pcard__head-info">'
-        f'<div class="pcard__name">{row["player_name"]}{card_suffix}</div>'
+        f'<a href="https://sorare.com/fr/mlb/players/{row.get("player_slug","")}" target="_blank"'
+        f' class="sorare-link pcard__name">{row["player_name"]}{card_suffix}</a>'
         f'<div class="pcard__sub">{pos} · {matchup}</div>'
         f'</div>'
         f'<span class="pcard__rarity-dot" style="background:var(--{rar_css},#888)"></span>'

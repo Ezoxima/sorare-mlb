@@ -15,6 +15,31 @@ from tabs import (
     tab6_equipe, tab7_competitions, tab8_lineups, tab9_marche, tab10_docs, tab11_lancers,
 )
 
+_STAT_DISPLAY: dict[str, str] = {
+    # HITTING
+    "1B":  "1B - Single",
+    "2B":  "2B - Double",
+    "3B":  "3B - Triple",
+    "BB":  "BB - Walks",
+    "CS":  "CS - Caught Stealing",
+    "HBP": "HBP - Hit By Pitch",
+    "HR":  "HR - Home Runs",
+    "RBI": "RBI - Runs Batted In",
+    "RUN": "R - Runs",
+    "SB":  "SB - Stolen Bases",
+    "SO":  "SO - Strikeouts",
+    # PITCHING
+    "APP": "APP - Appearances",
+    "ER":  "ER - Earned Runs",
+    "HA":  "HA - Hits Allowed",
+    "HB":  "HB - Hit Batsmen",
+    "HLD": "HLD - Holds",
+    "IP":  "IP - Innings Pitched",
+    "NOH": "NOH - No Hitters",
+    "SAV": "SAV - Saves",
+    "WIN": "WIN - Wins",
+}
+
 st.set_page_config(layout="wide", page_title="Sorare MLB", page_icon="⚾")
 
 st.markdown("""
@@ -342,6 +367,8 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 .t1-player { min-width: 130px; }
 .t1-name { color: var(--fg-0); font-weight: 600; font-size: 11px; white-space: nowrap; }
 .t1-meta { color: var(--fg-3); font-size: 9px; margin-top: 2px; display: flex; gap: 5px; align-items: center; }
+a.sorare-link { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--fg-3); }
+a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); }
 .t1-spark { width: 92px; padding-right: 4px; }
 .t1-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .t1-heure { text-align: right; color: var(--fg-2); white-space: nowrap; }
@@ -441,10 +468,14 @@ with st.sidebar:
         .drop_duplicates()
         .sort_values("stat_short_name")
     )
-    stat_labels_list = stats_dispo["stat_short_name"].tolist()
-    stat_keys_list   = stats_dispo["stat"].tolist()
-    sel_stat_label   = st.selectbox("Statistique", stat_labels_list)
-    sel_stat         = stat_keys_list[stat_labels_list.index(sel_stat_label)]
+    stat_labels_list  = stats_dispo["stat_short_name"].tolist()
+    stat_keys_list    = stats_dispo["stat"].tolist()
+    stat_display_list = [_STAT_DISPLAY.get(s, s) for s in stat_labels_list]
+    _sel_display      = st.selectbox("Statistique", stat_display_list)
+    _sel_idx          = stat_display_list.index(_sel_display)
+    sel_stat_label    = stat_labels_list[_sel_idx]   # clé DB ("1B", "HR"…)
+    sel_stat          = stat_keys_list[_sel_idx]
+    sel_stat_display  = _sel_display                  # label UI ("1B - Single"…)
 
     fenetre = st.radio("Fenêtre", list(FENETRE_OPTIONS.keys()), index=1, horizontal=True)
 
@@ -481,10 +512,10 @@ with st.sidebar:
     _today_label = today_paris.strftime("%a %d %b")
     _default_idx = _day_labels.index(_today_label) if _today_label in _day_labels else 0
     _sel_day_label = st.selectbox("Jour de match", _day_labels, index=_default_idx, key="sel_day")
-    sel_day = (
-        _avail_days[_day_labels.index(_sel_day_label) - 1]
-        if _sel_day_label != "Tous les jours" else None
-    )
+    if _sel_day_label != "Tous les jours" and _sel_day_label in _day_labels:
+        sel_day = _avail_days[_day_labels.index(_sel_day_label) - 1]
+    else:
+        sel_day = None
 
     st.divider()
     if st.button("⟳ Rafraîchir", use_container_width=True, key="sidebar_rerun"):
@@ -537,12 +568,16 @@ if not _games_day.empty:
         _t  = _g["game_date"].astimezone(PARIS_TZ).strftime("%H:%M")
         _ht = _g.get("home_team_slug") or ""
         _at = _g.get("away_team_slug") or ""
+        _hp = _g.get("home_probable_pitcher") or ""
+        _ap = _g.get("away_probable_pitcher") or ""
         if _ht:
             _tgi[_ht] = {"heure": _t, "home_away": "home", "opp": _team_abbr(_at, _tcodes),
-                          "opp_slug": _at, "own_slug": _ht, "home_slug": _ht, "away_slug": _at}
+                          "opp_slug": _at, "own_slug": _ht, "home_slug": _ht, "away_slug": _at,
+                          "opp_pitcher_slug": _ap}
         if _at:
             _tgi[_at] = {"heure": _t, "home_away": "away", "opp": _team_abbr(_ht, _tcodes),
-                          "opp_slug": _ht, "own_slug": _at, "home_slug": _ht, "away_slug": _at}
+                          "opp_slug": _ht, "own_slug": _at, "home_slug": _ht, "away_slug": _at,
+                          "opp_pitcher_slug": _hp}
     _slugs_today = {s for s, c in _slug_club.items() if c in _teams_day}
 else:
     _cal_today   = df_calendar[
@@ -574,9 +609,11 @@ if _tgi:
     df_today["coup_envoi"]       = df_today.apply(lambda r: _coup_envoi_live(r), axis=1)
     df_today["home_slug"]        = df_today.apply(lambda r: (_gi(r) or {}).get("home_slug", ""), axis=1)
     df_today["away_slug"]        = df_today.apply(lambda r: (_gi(r) or {}).get("away_slug", ""), axis=1)
+    df_today["opp_pitcher_slug"] = df_today.apply(lambda r: (_gi(r) or {}).get("opp_pitcher_slug", ""), axis=1)
 else:
-    df_today["home_slug"] = ""
-    df_today["away_slug"] = ""
+    df_today["home_slug"]        = ""
+    df_today["away_slug"]        = ""
+    df_today["opp_pitcher_slug"] = ""
 
 _is_map = (
     df_calendar[df_calendar["gallery_manager"] == sel_manager]
@@ -637,8 +674,9 @@ ctx = {
     "df_lb":          df_lb,
     "df_market":      df_market,
     "sel_manager":    sel_manager,
-    "sel_stat":       sel_stat,
-    "sel_stat_label": sel_stat_label,
+    "sel_stat":         sel_stat,
+    "sel_stat_label":   sel_stat_label,
+    "sel_stat_display": sel_stat_display,
     "fenetre":        fenetre,
     "categorie":      categorie,
     "target":         target,
@@ -649,6 +687,7 @@ ctx = {
     "_slug_name_map": _slug_name_map,
     "_tlogos":        _tlogos,
     "_teams_day":     tuple(sorted(_teams_day)),
+    "_tgi":           _tgi,
 }
 
 with tab1:
@@ -686,5 +725,5 @@ with tab11:
 
 # ── Statusbar ────────────────────────────────────────────────────────────────────
 _last_upd = now_paris.strftime("%d %b %Y — %H:%M")
-_filters_summary = f"{categorie} · {sel_stat_label} · {fenetre}"
+_filters_summary = f"{categorie} · {sel_stat_display} · {fenetre}"
 render_statusbar(_last_upd, _filters_summary)

@@ -8,8 +8,9 @@ from data_loaders import (
 
 
 def render(ctx: dict) -> None:
-    sel_stat       = ctx["sel_stat"]
-    sel_stat_label = ctx["sel_stat_label"]
+    sel_stat         = ctx["sel_stat"]
+    sel_stat_label   = ctx["sel_stat_label"]
+    sel_stat_display = ctx.get("sel_stat_display", sel_stat_label)
     fenetre        = ctx["fenetre"]
     target         = ctx["target"]
 
@@ -41,7 +42,7 @@ def render(ctx: dict) -> None:
     st.markdown(
         f'<div class="panel__hd" style="border:1px solid var(--line);border-bottom:none;margin-top:4px">'
         f'<span class="title">Base de données</span>'
-        f'<span class="pill accent">{sel_stat_label}</span>'
+        f'<span class="pill accent">{sel_stat_display}</span>'
         f'<span class="pill">{fenetre}</span>'
         f'<span class="right" style="color:var(--fg-3);font-size:9px">'
         f'{len(df_f)} / {len(df_db)} joueurs</span>'
@@ -69,7 +70,7 @@ def render(ctx: dict) -> None:
     _h1.markdown(f'<div style="{_hdr_c}">Poste</div>',                  unsafe_allow_html=True)
     _h2.markdown(f'<div style="{_hdr_c}">Équipe</div>',                 unsafe_allow_html=True)
     _h3.markdown(f'<div style="{_hdr_c}">Tendance</div>',               unsafe_allow_html=True)
-    _stat_hdr = "Objectif" if target > 0 else sel_stat_label
+    _stat_hdr = "Objectif" if target > 0 else sel_stat_display
     _h4.markdown(f'<div style="{_hdr_c}">{_stat_hdr}</div>',           unsafe_allow_html=True)
     _h5.markdown(f'<div style="{_hdr_c}">M</div>',                      unsafe_allow_html=True)
 

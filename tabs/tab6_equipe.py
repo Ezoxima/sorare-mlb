@@ -653,7 +653,7 @@ def render(ctx: dict) -> None:
             _df_ar9["proj_score_sorare"].fillna(0.0) if _ar9_ssrc == "Sorare GW+"
             else _df_ar9["proj_score_auto"].fillna(0.0)
         )
-        _df_ar9["proj_score_eff"] = _ar9_base.round(1)
+        _df_ar9["proj_score_eff"] = _ar9_base.round(1)  # Arena : pas de bonus XP (règle Sorare)
         _cl_ar9 = _df_ar9.set_index("card_name").to_dict("index")
 
         def _fmt_opt_ar9(x: str) -> str:
