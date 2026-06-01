@@ -211,8 +211,11 @@ _STAT_LABEL_MAP = {
 
 @st.cache_data(ttl=300)
 def load_sorare_tasks(rarity: str = "limited") -> list:
-    load_dotenv(dotenv_path=Path(__file__).parent / ".." / ".env")
-    jwt = os.getenv("SORARE_JWT", "")
+    try:
+        jwt = st.secrets["SORARE_JWT"]
+    except Exception:
+        load_dotenv(dotenv_path=Path(__file__).parent / ".." / ".env")
+        jwt = os.getenv("SORARE_JWT", "")
     if not jwt:
         return []
     query = _TASKS_QUERY.replace("myTasks(sport: BASEBALL)",
