@@ -492,7 +492,7 @@ _default_idx = _day_labels.index(_today_label) if _today_label in _day_labels el
 # ── Filtres principaux (expander — accessible mobile et desktop) ───────────────
 
 with st.expander("⚙️ Filtres", expanded=False):
-    _ef1, _ef2, _ef3 = st.columns([2, 3, 2])
+    _ef1, _ef2 = st.columns([1, 2])
     with _ef1:
         categorie = st.radio("Catégorie", ["HITTING", "PITCHING"], horizontal=True, key="filter_cat")
     stats_dispo = (
@@ -508,12 +508,14 @@ with st.expander("⚙️ Filtres", expanded=False):
     sel_stat_label   = stat_labels_list[_sel_idx]
     sel_stat         = stat_keys_list[_sel_idx]
     sel_stat_display = _sel_display
-    with _ef3:
-        fenetre = st.radio("Fenêtre", list(FENETRE_OPTIONS.keys()), index=1, horizontal=True, key="filter_fen")
 
-    _ef4, _ef5, _ef6 = st.columns([3, 2, 1])
+    _ef3, _ef4 = st.columns([1, 2])
+    with _ef3:
+        fenetre = st.selectbox("Fenêtre", list(FENETRE_OPTIONS.keys()), index=1, key="filter_fen")
     with _ef4:
         _sel_day_label = st.selectbox("Jour de match", _day_labels, index=_default_idx, key="sel_day")
+
+    _ef5, _ef6 = st.columns([3, 1])
     with _ef5:
         target = st.number_input(
             "🎯 Objectif", min_value=0, value=0, step=1, format="%d",

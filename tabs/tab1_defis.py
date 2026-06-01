@@ -32,14 +32,11 @@ def render(ctx: dict) -> None:
     else:
         _tab1_day_label = now_paris.strftime("%A %d %B").capitalize()
 
-    _f1, _f2, _f3, _f4 = st.columns(4)
     _postes_dispo = sorted(df_today["position_agg"].dropna().unique())
-    _tab1_saison = _f1.selectbox(
-        "Saison", ["Tous", "IS", "Classic"], key="tab1_saison"
-    )
-    _tab1_poste = _f2.selectbox(
-        "Poste", ["Tous"] + _postes_dispo, key="tab1_poste"
-    )
+    _f1, _f2 = st.columns(2)
+    _tab1_saison = _f1.selectbox("Saison", ["Tous", "IS", "Classic"], key="tab1_saison")
+    _tab1_poste  = _f2.selectbox("Poste", ["Tous"] + _postes_dispo, key="tab1_poste")
+    _f3, _f4 = st.columns(2)
     _tab1_all_games = _f3.selectbox(
         "Tendances", ["Matchs joués", "Tous les matchs"], key="tab1_all_games"
     ) == "Tous les matchs"
@@ -469,35 +466,41 @@ def render(ctx: dict) -> None:
             .to_dict()
         )
 
-    top3      = df_active.head(3)
-    top3_cols = st.columns(max(len(top3), 1))
-    for i, ((_, row), col) in enumerate(zip(top3.iterrows(), top3_cols)):
-        with col:
-            pic_url    = _top3_pic_map.get(row["player_slug"])
-            spark_vals = _spark_map.get(row["player_slug"])
-            # Suffix carte : première carte du joueur (saison · serial)
-            _t3_sea, _t3_ser = "", ""
-            _t3_cards = _card_info_map.get(row["player_slug"])
-            if _t3_cards:
-                _t3_sea, _t3_ser, *_ = _t3_cards[0]
-            _t3_sfx_style = "font-weight:normal;color:#ffffff;opacity:0.65;font-size:0.82em"
-            if _t3_sea and _t3_ser:
-                _t3_suffix = f' <span style="{_t3_sfx_style}">· {_t3_sea} · #{_t3_ser}</span>'
-            elif _t3_ser:
-                _t3_suffix = f' <span style="{_t3_sfx_style}">· #{_t3_ser}</span>'
-            elif _t3_sea:
-                _t3_suffix = f' <span style="{_t3_sfx_style}">· {_t3_sea}</span>'
-            else:
-                _t3_suffix = ""
-            st.markdown(
-                render_terminal_card(i, row, sel_stat_display,
-                                     spark_values=spark_vals,
-                                     picture_url=pic_url,
-                                     target=target,
-                                     show_pred=False,
-                                     card_suffix=_t3_suffix),
-                unsafe_allow_html=True,
-            )
+    top3 = df_active.head(3)
+    _top3_cards_html = ""
+    for i, (_, row) in enumerate(top3.iterrows()):
+        pic_url    = _top3_pic_map.get(row["player_slug"])
+        spark_vals = _spark_map.get(row["player_slug"])
+        _t3_sea, _t3_ser = "", ""
+        _t3_cards = _card_info_map.get(row["player_slug"])
+        if _t3_cards:
+            _t3_sea, _t3_ser, *_ = _t3_cards[0]
+        _t3_sfx_style = "font-weight:normal;color:#ffffff;opacity:0.65;font-size:0.82em"
+        if _t3_sea and _t3_ser:
+            _t3_suffix = f' <span style="{_t3_sfx_style}">· {_t3_sea} · #{_t3_ser}</span>'
+        elif _t3_ser:
+            _t3_suffix = f' <span style="{_t3_sfx_style}">· #{_t3_ser}</span>'
+        elif _t3_sea:
+            _t3_suffix = f' <span style="{_t3_sfx_style}">· {_t3_sea}</span>'
+        else:
+            _t3_suffix = ""
+        _top3_cards_html += (
+            f'<div style="flex:1;min-width:200px;max-width:420px">'
+            + render_terminal_card(i, row, sel_stat_display,
+                                   spark_values=spark_vals,
+                                   picture_url=pic_url,
+                                   target=target,
+                                   show_pred=False,
+                                   card_suffix=_t3_suffix)
+            + '</div>'
+        )
+    st.markdown(
+        f'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
+        f'<div style="display:flex;gap:8px;min-width:min-content">'
+        f'{_top3_cards_html}'
+        f'</div></div>',
+        unsafe_allow_html=True,
+    )
 
     st.markdown('<div class="divider-h"></div>', unsafe_allow_html=True)
 
