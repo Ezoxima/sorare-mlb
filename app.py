@@ -425,7 +425,7 @@ now_utc    = pd.Timestamp.now(tz="UTC")
 now_paris  = now_utc.astimezone(PARIS_TZ)
 today_paris = now_paris.date()
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
+# ── Sidebar : manager + filtres secondaires ────────────────────────────────────
 
 with st.sidebar:
     st.markdown(
@@ -457,34 +457,6 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
-    st.markdown('<div style="font-size:9px;letter-spacing:0.14em;text-transform:uppercase;'
-                'color:var(--fg-3);padding:6px 0 4px">Filtres galerie</div>', unsafe_allow_html=True)
-
-    categorie = st.radio("Catégorie", ["HITTING", "PITCHING"], horizontal=True)
-
-    stats_dispo   = (
-        df_all[df_all["category"] == categorie][["stat_short_name", "stat"]]
-        .drop_duplicates()
-        .sort_values("stat_short_name")
-    )
-    stat_labels_list  = stats_dispo["stat_short_name"].tolist()
-    stat_keys_list    = stats_dispo["stat"].tolist()
-    stat_display_list = [_STAT_DISPLAY.get(s, s) for s in stat_labels_list]
-    _sel_display      = st.selectbox("Statistique", stat_display_list)
-    _sel_idx          = stat_display_list.index(_sel_display)
-    sel_stat_label    = stat_labels_list[_sel_idx]   # clé DB ("1B", "HR"…)
-    sel_stat          = stat_keys_list[_sel_idx]
-    sel_stat_display  = _sel_display                  # label UI ("1B - Single"…)
-
-    fenetre = st.radio("Fenêtre", list(FENETRE_OPTIONS.keys()), index=1, horizontal=True)
-
-    target = st.number_input(
-        "🎯 Objectif", min_value=0, value=0, step=1,
-        format="%d",
-        help="Seuil visuel dans le graphique historique",
-    )
-
     st.divider()
 
     df_manager = df_all[df_all["gallery_manager"] == sel_manager]
@@ -497,30 +469,66 @@ with st.sidebar:
     sel_raretés = compact_multiselect("Raretés", raretés_dispo, key="filter_rar")
 
     st.divider()
-    st.caption("Filtre calendrier")
-    _days_cal = set(
-        df_calendar[
-            (df_calendar["gallery_manager"] == sel_manager) &
-            (df_calendar["next_game_date"].dt.date >= today_paris)
-        ]["next_game_date"].dt.date.unique()
-    )
-    _games_all = pd.read_parquet(_DATA_DIR / "games.parquet")
-    _games_all["game_date"] = pd.to_datetime(_games_all["game_date"], utc=True, errors="coerce")
-    _days_games = set(_games_all[_games_all["game_date"].dt.date >= today_paris]["game_date"].dt.date.unique())
-    _avail_days = sorted(_days_cal | _days_games)
-    _day_labels = ["Tous les jours"] + [d.strftime("%a %d %b") for d in _avail_days]
-    _today_label = today_paris.strftime("%a %d %b")
-    _default_idx = _day_labels.index(_today_label) if _today_label in _day_labels else 0
-    _sel_day_label = st.selectbox("Jour de match", _day_labels, index=_default_idx, key="sel_day")
-    if _sel_day_label != "Tous les jours" and _sel_day_label in _day_labels:
-        sel_day = _avail_days[_day_labels.index(_sel_day_label) - 1]
-    else:
-        sel_day = None
-
-    st.divider()
     if st.button("⟳ Rafraîchir", use_container_width=True, key="sidebar_rerun"):
         st.cache_data.clear()
         st.rerun()
+
+# ── Calcul des options de jours (avant l'expander) ────────────────────────────
+
+_days_cal = set(
+    df_calendar[
+        (df_calendar["gallery_manager"] == sel_manager) &
+        (df_calendar["next_game_date"].dt.date >= today_paris)
+    ]["next_game_date"].dt.date.unique()
+)
+_games_all = pd.read_parquet(_DATA_DIR / "games.parquet")
+_games_all["game_date"] = pd.to_datetime(_games_all["game_date"], utc=True, errors="coerce")
+_days_games = set(_games_all[_games_all["game_date"].dt.date >= today_paris]["game_date"].dt.date.unique())
+_avail_days  = sorted(_days_cal | _days_games)
+_day_labels  = ["Tous les jours"] + [d.strftime("%a %d %b") for d in _avail_days]
+_today_label = today_paris.strftime("%a %d %b")
+_default_idx = _day_labels.index(_today_label) if _today_label in _day_labels else 0
+
+# ── Filtres principaux (expander — accessible mobile et desktop) ───────────────
+
+with st.expander("⚙️ Filtres", expanded=False):
+    _ef1, _ef2, _ef3 = st.columns([2, 3, 2])
+    with _ef1:
+        categorie = st.radio("Catégorie", ["HITTING", "PITCHING"], horizontal=True, key="filter_cat")
+    stats_dispo = (
+        df_all[df_all["category"] == categorie][["stat_short_name", "stat"]]
+        .drop_duplicates().sort_values("stat_short_name")
+    )
+    stat_labels_list  = stats_dispo["stat_short_name"].tolist()
+    stat_keys_list    = stats_dispo["stat"].tolist()
+    stat_display_list = [_STAT_DISPLAY.get(s, s) for s in stat_labels_list]
+    with _ef2:
+        _sel_display = st.selectbox("Statistique", stat_display_list, key="filter_stat")
+    _sel_idx     = stat_display_list.index(_sel_display)
+    sel_stat_label   = stat_labels_list[_sel_idx]
+    sel_stat         = stat_keys_list[_sel_idx]
+    sel_stat_display = _sel_display
+    with _ef3:
+        fenetre = st.radio("Fenêtre", list(FENETRE_OPTIONS.keys()), index=1, horizontal=True, key="filter_fen")
+
+    _ef4, _ef5, _ef6 = st.columns([3, 2, 1])
+    with _ef4:
+        _sel_day_label = st.selectbox("Jour de match", _day_labels, index=_default_idx, key="sel_day")
+    with _ef5:
+        target = st.number_input(
+            "🎯 Objectif", min_value=0, value=0, step=1, format="%d",
+            help="Seuil visuel dans le graphique historique", key="filter_target",
+        )
+    with _ef6:
+        st.markdown('<div style="padding-top:22px"></div>', unsafe_allow_html=True)
+        if st.button("⟳", key="main_rerun", help="Rafraîchir"):
+            st.cache_data.clear()
+            st.rerun()
+
+if _sel_day_label != "Tous les jours" and _sel_day_label in _day_labels:
+    sel_day = _avail_days[_day_labels.index(_sel_day_label) - 1]
+else:
+    sel_day = None
 
 # ── Filtrage galerie ────────────────────────────────────────────────────────────
 
