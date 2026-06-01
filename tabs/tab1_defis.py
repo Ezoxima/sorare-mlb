@@ -544,8 +544,7 @@ def render(ctx: dict) -> None:
 
     st.markdown("""
 <style>
-/* Bouton excl. */
-div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type button {
+div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type button {
   width:20px!important; height:20px!important; min-height:20px!important;
   padding:0!important; border-radius:50%!important;
   background:rgba(160,30,30,0.13)!important;
@@ -553,12 +552,12 @@ div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type bu
   color:rgba(220,70,70,0.75)!important;
   font-size:10px!important; line-height:1!important;
 }
-div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type button:hover {
+div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type button:hover {
   background:rgba(200,40,40,0.22)!important;
   border-color:rgba(220,70,70,0.5)!important;
   color:rgba(240,90,90,0.95)!important;
 }
-div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type button p {
+div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type button p {
   margin:0!important; padding:0!important; line-height:1!important;
 }
 /* Panel : empilement vertical sur mobile */
@@ -570,42 +569,45 @@ div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type bu
 </style>
 """, unsafe_allow_html=True)
 
-    # Grille CSS partagée header + lignes (avec ascenseur horizontal sur mobile)
+    # Grille colonnes : Joueur | Tendance | Stat | M | Match | [Pitcher] | Excl.
+    _COL_W     = [2, 1, 1, 0.7, 1, 0.9, 0.6] if _pitcher_mode else [2, 1, 1, 1, 1, 1]
     _stat_hdr  = "Atteint" if target > 0 else sel_stat_display
     if _pitcher_mode:
         _stat_hdr = f"{_stat_hdr} · Ajusté"
-    _pit_col   = " 80px" if _pitcher_mode else ""
-    _grid_tmpl = f"minmax(140px,2fr) 90px 50px 28px minmax(90px,1.5fr){_pit_col}"
-    _min_w     = 430 + (80 if _pitcher_mode else 0)
-    _scroll    = f"overflow-x:auto;-webkit-overflow-scrolling:touch"
-    _inner     = f"display:grid;grid-template-columns:{_grid_tmpl};align-items:center;gap:0 8px;min-width:{_min_w}px"
-    _hdr_s     = ("font-family:var(--mono);font-size:9px;letter-spacing:0.12em;"
+    _hdr_style = ("font-family:var(--mono);font-size:9px;letter-spacing:0.12em;"
                   "text-transform:uppercase;color:var(--fg-3);padding:5px 0 4px;"
                   "border-bottom:1px solid var(--line)")
-    _hdr_c     = _hdr_s + ";text-align:center"
-    _pit_hdr   = (f'<div style="{_hdr_c}" title="Moy. accordée vs ligue '
-                  f'(moy. {_pf_league_avg:.2f}/match)">Pitcher</div>' if _pitcher_mode else "")
+    _hdr_c     = _hdr_style + ";text-align:center"
 
-    _hh0, _hh1 = st.columns([9, 0.7], gap="small")
-    with _hh0:
-        st.markdown(
-            f'<div style="{_scroll}"><div style="{_inner};padding-bottom:1px">'
-            f'<div style="{_hdr_s}">Carte</div>'
-            f'<div style="{_hdr_c}">Tendance</div>'
-            f'<div style="{_hdr_c}">{_stat_hdr}</div>'
-            f'<div style="{_hdr_c}">M</div>'
-            f'<div style="{_hdr_c}">Match</div>'
-            f'{_pit_hdr}'
-            f'</div></div>',
+    if _pitcher_mode:
+        _h0, _h1, _h2, _h3, _h4, _h5, _h6 = st.columns(_COL_W, gap="small")
+    else:
+        _h0, _h1, _h2, _h3, _h4, _h5 = st.columns(_COL_W, gap="small")
+    _h0.markdown(f'<div style="{_hdr_style}">Carte</div>',        unsafe_allow_html=True)
+    _h1.markdown(f'<div style="{_hdr_c}">Tendance</div>',         unsafe_allow_html=True)
+    _h2.markdown(f'<div style="{_hdr_c}">{_stat_hdr}</div>',      unsafe_allow_html=True)
+    _h3.markdown(f'<div style="{_hdr_c}">M</div>',                unsafe_allow_html=True)
+    _h4.markdown(f'<div style="{_hdr_c}">Match</div>',            unsafe_allow_html=True)
+    if _pitcher_mode:
+        _h5.markdown(
+            f'<div style="{_hdr_c}" title="Moy. accordée vs ligue (moy. {_pf_league_avg:.2f}/match)">Pitcher</div>',
             unsafe_allow_html=True,
         )
-    with _hh1:
-        st.markdown(f'<div style="{_hdr_c}">Excl.</div>', unsafe_allow_html=True)
-        if _has_excl:
-            if st.button("↺", key=f"tab1_excl_reset_{_day_key}",
-                         help="Réinitialiser les exclusions", use_container_width=True):
-                st.session_state[_excl_key] = []
-                st.rerun()
+        with _h6:
+            st.markdown(f'<div style="{_hdr_c}">Excl.</div>', unsafe_allow_html=True)
+            if _has_excl:
+                if st.button("↺", key=f"tab1_excl_reset_{_day_key}",
+                             help="Réinitialiser les exclusions", use_container_width=True):
+                    st.session_state[_excl_key] = []
+                    st.rerun()
+    else:
+        with _h5:
+            st.markdown(f'<div style="{_hdr_c}">Excl.</div>', unsafe_allow_html=True)
+            if _has_excl:
+                if st.button("↺", key=f"tab1_excl_reset_{_day_key}",
+                             help="Réinitialiser les exclusions", use_container_width=True):
+                    st.session_state[_excl_key] = []
+                    st.rerun()
 
     for _, row in _df_expanded.iterrows():
         _slug  = row["player_slug"]
@@ -667,69 +669,87 @@ div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type bu
         )
         _name_style = "text-decoration:line-through;color:var(--fg-3)" if _excl else ""
 
-        # Cellule stat
-        if _pitcher_mode:
-            _adj_val  = row.get("_adj_score")
-            _base_moy = f'{row["moyenne"]:.2f}'
-            _adj_str  = f'{float(_adj_val):.2f}' if (_adj_val is not None and _adj_val == _adj_val) else _base_moy
-            _stat_cell = (
-                f'<div style="opacity:{_alpha};text-align:center;font-family:var(--mono)">'
-                f'<div style="font-size:11px;color:var(--pos);font-weight:600">{_adj_str}</div>'
-                f'<div style="font-size:9px;color:var(--fg-3)">{_base_moy}</div></div>'
-            )
-            _pf_info2 = _pf_slug_map.get(_slug)
-            if _pf_info2:
-                _pp_slug2, _pp_factor2 = _pf_info2
-                _pit_cell = (
-                    f'<div style="opacity:{_alpha};text-align:center;font-family:var(--mono)">'
-                    f'<div style="font-size:10px;color:var(--fg-1)">{_pitcher_short(_pp_slug2)}</div>'
-                    f'<div>{_factor_html(_pp_factor2)}</div></div>'
-                )
-            else:
-                _pit_cell = f'<div style="text-align:center;font-size:9px;color:var(--fg-3)">—</div>'
-        else:
-            _stat_cell = (
-                f'<div style="opacity:{_alpha};text-align:center;padding:8px 0;'
-                f'font-family:var(--mono);font-size:11px;color:var(--pos)">{_moy}</div>'
-            )
-            _pit_cell = ""
+        _row_cols = st.columns(_COL_W, vertical_alignment="center", gap="small")
+        _c0, _c1, _c2, _c3, _c4 = _row_cols[0], _row_cols[1], _row_cols[2], _row_cols[3], _row_cols[4]
+        _c_pitcher = _row_cols[5] if _pitcher_mode else None
+        _c5        = _row_cols[6] if _pitcher_mode else _row_cols[5]
 
-        _c_main, _c5 = st.columns([9, 0.7], vertical_alignment="center", gap="small")
-
-        with _c_main:
+        with _c0:
             st.markdown(
-                f'<div style="{_scroll}"><div style="{_inner};padding:3px 0">'
-                # Carte
-                f'<div style="opacity:{_alpha}">'
+                f'<div style="opacity:{_alpha};padding:4px 0">'
                 f'<a href="https://sorare.com/fr/mlb/players/{_slug}" target="_blank"'
                 f' class="sorare-link t1-name" style="{_name_style}">{row["player_name"]}{_card_suffix}</a>'
                 f'<div class="t1-meta">'
                 f'<span style="color:{_rar_col}">{_rar_lbl}</span>'
-                f'<span style="color:var(--fg-3)">·</span><span>{_pos}</span>'
-                f'{_is_tag}{_pp_tag}</div></div>'
-                # Tendance
-                f'<div style="opacity:{_alpha};text-align:center">{_spark}</div>'
-                # Stat
-                + _stat_cell
-                # Nb matchs
-                + f'<div style="opacity:{_alpha};text-align:center;font-family:var(--mono);'
-                f'font-size:10px;color:var(--fg-3)">{_matchs}</div>'
-                # Match
-                + f'<div style="display:flex;justify-content:center">{_match_html}</div>'
-                # Pitcher (optionnel)
-                + _pit_cell
-                + f'</div></div>',
+                f'<span style="color:var(--fg-3)">·</span>'
+                f'<span>{_pos}</span>'
+                f'{_is_tag}{_pp_tag}'
+                f'</div>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
-
-        with _c5:
-            _btn_lbl  = "↩" if _excl else "✕"
-            _btn_help = "Réintégrer" if _excl else "Exclure"
-            _btn_key  = f"excl_{_slug}_{_sea}_{_ser}_{_day_key}"
-            if st.button(_btn_lbl, key=_btn_key, help=_btn_help):
-                if _excl:
-                    st.session_state[_excl_key] = [s for s in st.session_state[_excl_key]
-                                                   if s != _card_id]
+        with _c1:
+            st.markdown(
+                f'<div style="opacity:{_alpha};padding:6px 0;text-align:center">{_spark}</div>',
+                unsafe_allow_html=True,
+            )
+        with _c2:
+            if _pitcher_mode:
+                _adj_val  = row.get("_adj_score")
+                _base_moy = f'{row["moyenne"]:.2f}'
+                _adj_str  = f'{float(_adj_val):.2f}' if (_adj_val is not None and _adj_val == _adj_val) else _base_moy
+                st.markdown(
+                    f'<div style="opacity:{_alpha};text-align:center;padding:4px 0;font-family:var(--mono)">'
+                    f'<div style="font-size:11px;color:var(--pos);font-weight:600">{_adj_str}</div>'
+                    f'<div style="font-size:9px;color:var(--fg-3)">{_base_moy} brut</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<div style="opacity:{_alpha};text-align:center;padding:8px 0;'
+                    f'font-family:var(--mono);font-size:11px;color:var(--pos)">{_moy}</div>',
+                    unsafe_allow_html=True,
+                )
+        with _c3:
+            st.markdown(
+                f'<div style="opacity:{_alpha};text-align:center;padding:8px 0;'
+                f'font-family:var(--mono);font-size:10px;color:var(--fg-3)">{_matchs}</div>',
+                unsafe_allow_html=True,
+            )
+        with _c4:
+            st.markdown(
+                f'<div style="display:flex;justify-content:center">{_match_html}</div>',
+                unsafe_allow_html=True,
+            )
+        if _c_pitcher is not None:
+            with _c_pitcher:
+                _pf_info2 = _pf_slug_map.get(_slug)
+                if _pf_info2:
+                    _pp_slug2, _pp_factor2 = _pf_info2
+                    _pp_name2 = _pitcher_short(_pp_slug2)
+                    st.markdown(
+                        f'<div style="opacity:{_alpha};text-align:center;padding:4px 0;font-family:var(--mono)">'
+                        f'<div style="font-size:10px;color:var(--fg-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{_pp_name2}</div>'
+                        f'<div>{_factor_html(_pp_factor2)}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
                 else:
-                    st.session_state[_excl_key] = list(_excl_set | {_card_id})
-                st.rerun()
+                    st.markdown(
+                        f'<div style="text-align:center;padding:8px 0;font-size:9px;color:var(--fg-3)">—</div>',
+                        unsafe_allow_html=True,
+                    )
+        with _c5:
+            _, _cbx = st.columns([1, 1], vertical_alignment="center")
+            with _cbx:
+                _btn_lbl  = "↩" if _excl else "✕"
+                _btn_help = "Réintégrer" if _excl else "Exclure"
+                _btn_key  = f"excl_{_slug}_{_sea}_{_ser}_{_day_key}"
+                if st.button(_btn_lbl, key=_btn_key, help=_btn_help):
+                    if _excl:
+                        st.session_state[_excl_key] = [s for s in st.session_state[_excl_key]
+                                                       if s != _card_id]
+                    else:
+                        st.session_state[_excl_key] = list(_excl_set | {_card_id})
+                    st.rerun()
