@@ -615,10 +615,11 @@ else:
     df_today["away_slug"]        = ""
     df_today["opp_pitcher_slug"] = ""
 
+# IS = True si le joueur a AU MOINS UNE carte IS (évite d'exclure les joueurs IS+Classic)
 _is_map = (
     df_calendar[df_calendar["gallery_manager"] == sel_manager]
-    .drop_duplicates("player_slug")
-    .set_index("player_slug")["in_season_eligible"]
+    .groupby("player_slug")["in_season_eligible"]
+    .any()
 )
 df_today["in_season_eligible"] = df_today["player_slug"].map(_is_map)
 
@@ -627,7 +628,11 @@ _pp_slugs = set(_load_pp_today(str(today_paris)))
 try:
     _df_pp_gw, _ = load_upcoming_pitchers()
     if not _df_pp_gw.empty:
-        _df_pp_today = _df_pp_gw[_df_pp_gw["game_date"].dt.date == today_paris]
+        _pp_ws = pd.Timestamp(str(_day_filter) + " 16:00").tz_localize(PARIS_TZ)
+        _pp_we = (pd.Timestamp(str(_day_filter) + " 08:00") + pd.Timedelta(days=1)).tz_localize(PARIS_TZ)
+        _df_pp_today = _df_pp_gw[
+            (_df_pp_gw["game_date"] >= _pp_ws) & (_df_pp_gw["game_date"] < _pp_we)
+        ]
         _pp_slugs.update(_df_pp_today["home_pitcher_slug"].dropna())
         _pp_slugs.update(_df_pp_today["away_pitcher_slug"].dropna())
 except Exception:

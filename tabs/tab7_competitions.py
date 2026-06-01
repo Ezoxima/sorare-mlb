@@ -412,11 +412,27 @@ def render(ctx: dict) -> None:
         hits = df_ref[df_ref["score_threshold"] <= score]
         return hits.sort_values("score_threshold", ascending=False).iloc[0] if not hits.empty else None
 
+    _MY_SLUG9  = "ezox"
     _ref_base9 = _arena9[
         (_arena9["rarity_type"] == _rar9) &
         _arena9["gw_int"].isin(_gws_cmp9) &
         _arena9["score_threshold"].notna()
-    ]
+    ].copy()
+
+    # Si j'ai gagné le tier 1 d'un leaderboard, on l'efface et le tier 2 devient la référence
+    if "winner_slug" in _ref_base9.columns:
+        _won_lb_slugs9 = set(
+            _ref_base9.loc[
+                (_ref_base9["tier_rank"] == 1) & (_ref_base9["winner_slug"] == _MY_SLUG9),
+                "leaderboard_slug"
+            ]
+        )
+        if _won_lb_slugs9:
+            _ref_base9 = _ref_base9[
+                ~((_ref_base9["leaderboard_slug"].isin(_won_lb_slugs9)) &
+                  (_ref_base9["tier_rank"] == 1))
+            ].copy()
+
     _is_arena_map9 = _ref_base9.groupby("leaderboard_name")["is_arena"].first().to_dict()
 
     _comp_ref9 = (

@@ -127,3 +127,45 @@ Do not suggest re-introducing a global ML model unless the user asks.
 - `ml_predictions.parquet` stores `pred_*` values per game, not per GW — the app scales by N
 - Arena "Libre" slot accepts only hitter positions (CI/MI/OF), not pitchers
 - **Arena competitions do NOT apply card_power (XP bonus)** — `proj_score_eff` in Arena equals `proj_score` (no multiplication). This is intentional per Sorare Arena rules. Only Compétitions (Champions/Hot Streak/Challenger) use card_power.
+
+## Game-day window
+
+MLB games start in US afternoons/evenings (18:00–22:30 ET), which is Paris time **00:00–04:30 the next day**.
+The app defines a "game day" as a sliding window: **16:00 Paris → 08:00 Paris next day**.
+
+This window must be used consistently everywhere:
+- `load_today_games()` in `data_loaders.py`
+- `_load_pp_today()` in `data_loaders.py`
+- `_df_pp_today` filter in `app.py`
+
+**Never** filter by raw `game_date.dt.date == today_paris` — UTC date ≠ Paris date for night games.
+
+## Two-way players (e.g. Ohtani)
+
+Ohtani (`shohei-ohtani-19940705`) has `agg_position_1 = 'CI'` (hitter role).
+`mlb.game_scores` contains **two rows per game** for him: one `HITTING` and one `PITCHING`.
+
+When computing his EWMA in `ml_predict_gw.py`, always filter `category = 'HITTING'`
+(handled by the category filter added 2026-06-01). Without this filter, pitching rows (avg ~2 pts)
+dilute the hitting EWMA (~11 pts), cutting predictions by ~40%.
+
+## Lineup deduplication rules (Arena)
+
+- **Intra-lineup**: same `player_slug` forbidden twice (regardless of card) — enforced in `_fill_is`
+- **Inter-lineups**: same `card_name` forbidden across teams — player with IS + Classic cards can play in two different Arena teams
+
+## IS / Classic card detection
+
+A player with both IS and Classic cards of the same rarity:
+- `_is_map` in `app.py` uses `.groupby("player_slug")["in_season_eligible"].any()` → `True` if any IS card exists
+- Tab1 expansion (`_card_info_map`) stores `in_season_eligible` **per card** — each expanded row shows the correct IS/CLASSIC tag
+- `calendar.parquet` `DISTINCT ON (player_slug, id_manager, card_display_rarity)` keeps only one card per rarity — do not rely on it for IS/Classic status
+
+## Hitter prediction and DNP games
+
+EWMA for hitters includes non-played games (DNP) with `score = 0`. This correctly reflects
+the probability that a bench player doesn't play. Backup catchers or platoon players who sit out
+frequently will have low predicted scores even if their per-game average is high.
+
+Pitchers: DNP rows excluded — an SP not pitching on a given day carries no information about
+their next start quality.

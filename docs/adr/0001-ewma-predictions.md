@@ -31,3 +31,10 @@ avec half-life = 25 matchs et sigma empirique calculé sur les 50 derniers match
 - Implémenté dans `ml_predict_gw.py`, résultats dans `data/ml_predictions.parquet`.
 - `pred_*` sont des valeurs **par match** — l'app scale par N au moment de l'affichage.
 - Ne pas réintroduire un modèle global sauf demande explicite.
+
+## Amendments
+
+- **ADR 0006** (2026-06-01) : les matchs DNP (non-joués) sont inclus avec score=0 pour les hitters.
+  L'EWMA reflète désormais la probabilité de jouer, pas uniquement la qualité quand le joueur joue.
+- **2026-06-01** : filtre `category` ajouté pour les two-way players (Ohtani) — hitters voient
+  uniquement `category='HITTING'`, pitchers uniquement `category='PITCHING'`.

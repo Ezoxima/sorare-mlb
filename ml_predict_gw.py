@@ -221,11 +221,12 @@ def run(engine=None):
     # ── 4. Historique des scores ─────────────────────────────────────────────
     slugs = tuple(players["player_slug"].unique())
     scores = pd.read_sql("""
-        SELECT player_slug, game_date, score::float AS score
+        SELECT player_slug, game_date,
+               COALESCE(score::float, 0.0) AS score,
+               category, played_in_game
         FROM mlb.game_scores
         WHERE player_slug IN %s
-          AND played_in_game = true
-          AND score IS NOT NULL
+          AND (played_in_game = true OR category = 'HITTING')
         ORDER BY player_slug, game_date
     """, engine, params=(slugs,))
 
@@ -234,6 +235,23 @@ def run(engine=None):
         _pos_map = players.set_index("player_slug")["position"].to_dict()
         scores["_pitcher"] = scores["player_slug"].map(
             lambda s: _is_pitcher(_pos_map.get(s, ""))
+        )
+        # Two-way players : garder uniquement la catégorie correspondant au rôle
+        # Hitters : garder toutes les lignes HITTING (played ou DNP=0)
+        # Pitchers : garder uniquement les sorties jouées (played=true, PITCHING)
+        scores = scores[
+            (scores["_pitcher"] & scores["played_in_game"] & (scores["category"] == "PITCHING")) |
+            (~scores["_pitcher"] & (scores["category"] == "HITTING"))
+        ].copy()
+        # DNP hitters → score = 0
+        scores.loc[~scores["played_in_game"] & ~scores["_pitcher"], "score"] = 0.0
+        # Déduplique par (joueur, date) — priorité à played=true si doublon, puis retri chronologique
+        scores = (
+            scores
+            .sort_values("played_in_game", ascending=False)
+            .drop_duplicates(subset=["player_slug", "game_date"])
+            .sort_values(["player_slug", "game_date"])
+            .reset_index(drop=True)
         )
         fb = (
             scores.groupby("_pitcher")["score"]
@@ -446,6 +464,7 @@ def run(engine=None):
                             OR g.away_team_slug = p.team_slug)
                     WHERE gs.played_in_game = true
                       AND gs.score IS NOT NULL
+                      AND gs.category = 'HITTING'
                       AND gs.player_slug IN %s
                 )
                 SELECT hg.player_slug, hg.score, p2.bat_hand AS pitcher_hand

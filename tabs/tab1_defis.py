@@ -439,9 +439,10 @@ def render(ctx: dict) -> None:
             _ssm = re.search(r'(\d{4}-\d{2})', _cname)
             _serial = _sm.group(1)  if _sm  else ""
             _season = _ssm.group(1) if _ssm else ""
-            _rarity = _cr.get("card_display_rarity") or ""
+            _rarity     = _cr.get("card_display_rarity") or ""
+            _is_elig    = bool(_cr.get("in_season_eligible"))
             _card_info_map.setdefault(_cr["player_slug"], []).append(
-                (_season, _serial, _rarity)
+                (_season, _serial, _rarity, _is_elig)
             )
 
     # Un joueur est "actif" si au moins une de ses cartes n'est pas exclue
@@ -449,7 +450,7 @@ def render(ctx: dict) -> None:
         cards = _card_info_map.get(slug)
         if not cards:
             return True
-        return any(f"{slug}|{sea}|{ser}" not in _excl_set for sea, ser, _ in cards)
+        return any(f"{slug}|{sea}|{ser}" not in _excl_set for sea, ser, *_ in cards)
 
     df_active = df_view[df_view["player_slug"].apply(_has_active_card)]
 
@@ -478,7 +479,7 @@ def render(ctx: dict) -> None:
             _t3_sea, _t3_ser = "", ""
             _t3_cards = _card_info_map.get(row["player_slug"])
             if _t3_cards:
-                _t3_sea, _t3_ser, _ = _t3_cards[0]
+                _t3_sea, _t3_ser, *_ = _t3_cards[0]
             _t3_sfx_style = "font-weight:normal;color:#ffffff;opacity:0.65;font-size:0.82em"
             if _t3_sea and _t3_ser:
                 _t3_suffix = f' <span style="{_t3_sfx_style}">· {_t3_sea} · #{_t3_ser}</span>'
@@ -527,12 +528,13 @@ def render(ctx: dict) -> None:
     # Expansion : 1 ligne par carte (un joueur avec 2 cartes → 2 lignes)
     _expanded_rows = []
     for _, _prow in _df_table.iterrows():
-        _pcards = _card_info_map.get(_prow["player_slug"]) or [("", "", "")]
-        for _sea, _ser, _rar in _pcards:
+        _pcards = _card_info_map.get(_prow["player_slug"]) or [("", "", "", None)]
+        for _sea, _ser, _rar, _is_el in _pcards:
             _r = _prow.to_dict()
-            _r["_card_season"]  = _sea
-            _r["_card_serial"]  = _ser
-            _r["_card_rarity"]  = _rar or _prow.get("card_display_rarity", "")
+            _r["_card_season"]        = _sea
+            _r["_card_serial"]        = _ser
+            _r["_card_rarity"]        = _rar or _prow.get("card_display_rarity", "")
+            _r["in_season_eligible"]  = _is_el if _is_el is not None else _prow.get("in_season_eligible")
             _expanded_rows.append(_r)
     _df_expanded = (pd.DataFrame(_expanded_rows).reset_index(drop=True)
                     if _expanded_rows else _df_table)

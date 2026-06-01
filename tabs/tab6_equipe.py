@@ -230,23 +230,23 @@ def render(ctx: dict) -> None:
             _spos    = slot_pos if slot_pos is not None else _SLOT_POS
             _locked  = locked or {}
             is_map   = _df.set_index("card_name")["is_eligible"].to_dict()
-            slug_map = _df.set_index("card_name")["player_slug"].to_dict()
 
-            _eff_col  = score_col if score_col in _df.columns else "proj_score_eff"
+            _eff_col      = score_col if score_col in _df.columns else "proj_score_eff"
             _locked_cards = {c for c in _locked.values() if c}
+            slug_map      = _df.set_index("card_name")["player_slug"].to_dict()
             _locked_slugs = {slug_map.get(c, "") for c in _locked_cards}
 
-            def _fill_is(pre_filled: dict, excl_cards: set, excl_slugs: set) -> dict:
-                res       = dict(pre_filled)
-                _used     = {c for c in res.values() if c}
-                _u_slugs  = {slug_map.get(c, "") for c in _used}
+            def _fill_is(pre_filled: dict, excl_cards: set) -> dict:
+                res      = dict(pre_filled)
+                _used    = {c for c in res.values() if c}
+                _u_slugs = {slug_map.get(c, "") for c in _used}
                 for sname, valid_pos in _spos.items():
                     if sname in res:
                         continue
                     cands_all = _df[
                         (_df["position_agg"].isin(valid_pos) | _df["position_agg_2"].isin(valid_pos)) &
                         ~_df["card_name"].isin(excl_cards | _used) &
-                        ~_df["player_slug"].isin(excl_slugs | _u_slugs)
+                        ~_df["player_slug"].isin(_u_slugs)
                     ]
                     if cands_all.empty:
                         res[sname] = None
@@ -261,7 +261,7 @@ def render(ctx: dict) -> None:
                     _u_slugs.add(slug_map.get(res[sname], ""))
                 return res
 
-            result = _fill_is(dict(_locked), other_used, other_used_slugs)
+            result = _fill_is(dict(_locked), other_used)
 
             if require_is:
                 is_p1 = sum(1 for c in result.values() if c and is_map.get(c, False))
@@ -280,16 +280,13 @@ def render(ctx: dict) -> None:
                         non_is_c = _df[
                             (_df["position_agg"].isin(valid_pos) | _df["position_agg_2"].isin(valid_pos)) &
                             ~_df["card_name"].isin(other_used | _locked_cards) &
-                            ~_df["player_slug"].isin(other_used_slugs | _locked_slugs) &
+                            ~_df["player_slug"].isin(_locked_slugs) &
                             ~_df["is_eligible"]
                         ].sort_values(_eff_col, ascending=False)
                         if non_is_c.empty:
                             continue
-                        ni_card = non_is_c.iloc[0]["card_name"]
-                        pre   = {**_locked, sname: ni_card}
-                        excl  = other_used | {ni_card}
-                        excl_sl = other_used_slugs | {slug_map.get(ni_card, "")}
-                        candidate = _fill_is(pre, excl, excl_sl)
+                        ni_card   = non_is_c.iloc[0]["card_name"]
+                        candidate = _fill_is({**_locked, sname: ni_card}, other_used | {ni_card})
                         sc = _team_score(candidate)
                         if sc > best_score:
                             best_score = sc
@@ -609,6 +606,17 @@ def render(ctx: dict) -> None:
                 _df_ar9["card_name"].str.contains("2024-25", na=False, regex=False)
             ]
 
+        # Pitchers : garder uniquement les probable starters de la GW
+        _probable_pit_ar9: set = set()
+        if not _df_p8.empty:
+            _probable_pit_ar9.update(_df_p8["home_pitcher_slug"].dropna())
+            _probable_pit_ar9.update(_df_p8["away_pitcher_slug"].dropna())
+        _is_sp_ar9_flt = _df_ar9["position_agg"] == "SP"
+        if _probable_pit_ar9:
+            _df_ar9 = _df_ar9[
+                ~_is_sp_ar9_flt | _df_ar9["player_slug"].isin(_probable_pit_ar9)
+            ]
+
         if not df_ml.empty:
             _ml_ngw = (
                 df_ml[df_ml["gallery_manager"] == sel_manager]
@@ -738,14 +746,8 @@ def render(ctx: dict) -> None:
                 if _ni != _ar9_ti
                 for c in _tc.values() if c
             }
-            _ar9_other_slugs = {s for c in _ar9_other_used if (s := _ar9_global_slug.get(c)) and s}
-            _ar9_other_slugs |= set(
-                _df_ar9.loc[_df_ar9["card_name"].isin(_ar9_other_used), "player_slug"].dropna()
-            )
-
             _df_ar9_suggest = _df_ar9[
-                ~_df_ar9["card_name"].isin(_ar9_other_used) &
-                ~_df_ar9["player_slug"].isin(_ar9_other_slugs)
+                ~_df_ar9["card_name"].isin(_ar9_other_used)
             ]
 
             _ar9_btn1, _ar9_btn2 = st.columns([2, 2])
@@ -777,7 +779,7 @@ def render(ctx: dict) -> None:
                         _df_ar9[
                             (_df_ar9["position_agg"].isin(_vp9) | _df_ar9["position_agg_2"].isin(_vp9)) &
                             ~_df_ar9["card_name"].isin(_in_used9 | _ar9_other_used) &
-                            ~_df_ar9["player_slug"].isin(_in_slugs9 | _ar9_other_slugs)
+                            ~_df_ar9["player_slug"].isin(_in_slugs9)
                         ]
                         .sort_values("proj_score_eff", ascending=False)
                     )

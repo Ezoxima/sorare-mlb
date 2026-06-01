@@ -111,6 +111,7 @@ def fetch_reward_tiers(leaderboard_slug: str, headers: dict) -> list[dict]:
               fromRank
               fromSo5Ranking {
                 overallScore
+                user {slug nickname}
               }
               rewardConfigs {
                 id
@@ -140,30 +141,34 @@ def _parse_tiers(ranking: list) -> list[dict]:
     """Aplatit les paliers en lignes simples."""
     rows = []
     for tier_idx, tier in enumerate(ranking):
-        score     = (tier.get("fromSo5Ranking") or {}).get("overallScore")
-        from_rank = tier.get("fromRank")
+        so5_ranking  = tier.get("fromSo5Ranking") or {}
+        score        = so5_ranking.get("overallScore")
+        from_rank    = tier.get("fromRank")
+        winner_slug  = (so5_ranking.get("user") or {}).get("slug")
         if score is None:
             continue
         for rc in (tier.get("rewardConfigs") or []):
             if "usdCents" in str(rc):
                 rows.append({
-                    "tier_rank":       tier_idx + 1,
-                    "from_rank":       from_rank,
-                    "score_threshold": float(score),
-                    "reward_type":     "monetary",
-                    "reward_rarity":   None,
-                    "reward_quantity": None,
-                    "reward_usd_cents":rc.get("amount", {}).get("usdCents"),
+                    "tier_rank":        tier_idx + 1,
+                    "from_rank":        from_rank,
+                    "score_threshold":  float(score),
+                    "reward_type":      "monetary",
+                    "reward_rarity":    None,
+                    "reward_quantity":  None,
+                    "reward_usd_cents": rc.get("amount", {}).get("usdCents"),
+                    "winner_slug":      winner_slug,
                 })
             elif "configRarity" in rc:
                 rows.append({
-                    "tier_rank":       tier_idx + 1,
-                    "from_rank":       from_rank,
-                    "score_threshold": float(score),
-                    "reward_type":     "card_shard",
-                    "reward_rarity":   rc.get("configRarity"),
-                    "reward_quantity": rc.get("quantity"),
-                    "reward_usd_cents":None,
+                    "tier_rank":        tier_idx + 1,
+                    "from_rank":        from_rank,
+                    "score_threshold":  float(score),
+                    "reward_type":      "card_shard",
+                    "reward_rarity":    rc.get("configRarity"),
+                    "reward_quantity":  rc.get("quantity"),
+                    "reward_usd_cents": None,
+                    "winner_slug":      winner_slug,
                 })
     return rows
 
@@ -191,6 +196,7 @@ def build_hot_streak_df() -> pd.DataFrame:
             "reward_quantity":    shards,
             "reward_usd_cents":   None,
             "bonus_shards":       bonus,
+            "winner_slug":        None,
         })
     return pd.DataFrame(rows)
 
@@ -263,7 +269,8 @@ def run(since_gw: int = 119) -> pd.DataFrame:
                 # Leaderboard sans recompenses chiffrables → on garde quand meme une ligne
                 tiers = [{"tier_rank": None, "from_rank": None, "score_threshold": None,
                            "reward_type": None, "reward_rarity": None,
-                           "reward_quantity": None, "reward_usd_cents": None}]
+                           "reward_quantity": None, "reward_usd_cents": None,
+                           "winner_slug": None}]
 
             for t in tiers:
                 all_rows.append({
@@ -285,6 +292,7 @@ def run(since_gw: int = 119) -> pd.DataFrame:
                     "reward_quantity":  t["reward_quantity"],
                     "reward_usd_cents": t["reward_usd_cents"],
                     "bonus_shards":     None,
+                    "winner_slug":      t.get("winner_slug"),
                 })
 
             time.sleep(SLEEP)

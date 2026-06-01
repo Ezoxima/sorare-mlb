@@ -601,8 +601,9 @@ def load_db_stats(stat: str, fenetre: int, target: float = 0.0) -> pd.DataFrame:
 def load_today_games(today_date: str) -> pd.DataFrame:
     games = pd.read_parquet(_DATA_DIR / "games.parquet")
     games["game_date"] = pd.to_datetime(games["game_date"], utc=True, errors="coerce")
-    today = pd.Timestamp(today_date).date()
-    g = games[games["game_date"].dt.date == today].copy()
+    window_start = pd.Timestamp(today_date + " 16:00").tz_localize(PARIS_TZ)
+    window_end   = (pd.Timestamp(today_date + " 08:00") + pd.Timedelta(days=1)).tz_localize(PARIS_TZ)
+    g = games[(games["game_date"] >= window_start) & (games["game_date"] < window_end)].copy()
     g = g.sort_values("game_date").reset_index(drop=True)
     return g
 
@@ -868,8 +869,9 @@ def load_team_logos() -> dict:
 def _load_pp_today(today_date: str) -> frozenset:
     games = pd.read_parquet(_DATA_DIR / "games.parquet")
     games["game_date"] = pd.to_datetime(games["game_date"], utc=True, errors="coerce")
-    today = pd.Timestamp(today_date).date()
-    g = games[games["game_date"].dt.date == today]
+    window_start = pd.Timestamp(today_date + " 16:00").tz_localize(PARIS_TZ)
+    window_end   = (pd.Timestamp(today_date + " 08:00") + pd.Timedelta(days=1)).tz_localize(PARIS_TZ)
+    g = games[(games["game_date"] >= window_start) & (games["game_date"] < window_end)]
     slugs = set()
     slugs.update(g["home_probable_pitcher"].dropna())
     slugs.update(g["away_probable_pitcher"].dropna())
