@@ -558,31 +558,44 @@ div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type bu
 div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type button p {
   margin:0!important; padding:0!important; line-height:1!important;
 }
-/* Mobile */
+/* Panel : empilement vertical sur mobile */
 @media (max-width: 640px) {
-  .t1-hide-mobile { display:none !important; }
   .t1-grid { grid-template-columns:1fr !important; }
-  .t1-tasks-col { max-width:100% !important; border-right:none !important; border-bottom:1px solid var(--line) !important; }
+  .t1-tasks-col { max-width:100% !important; border-right:none !important;
+                  border-bottom:1px solid var(--line) !important; }
 }
 </style>
 """, unsafe_allow_html=True)
 
-    # 2 colonnes : bloc responsive HTML | bouton excl.
+    # Grille CSS partagée header + lignes (avec ascenseur horizontal sur mobile)
     _stat_hdr  = "Atteint" if target > 0 else sel_stat_display
     if _pitcher_mode:
-        _stat_hdr = f"{_stat_hdr}·Adj"
-    _hdr_style = ("font-family:var(--mono);font-size:9px;letter-spacing:0.12em;"
+        _stat_hdr = f"{_stat_hdr} · Ajusté"
+    _pit_col   = " 80px" if _pitcher_mode else ""
+    _grid_tmpl = f"minmax(140px,2fr) 90px 50px 28px minmax(90px,1.5fr){_pit_col}"
+    _min_w     = 430 + (80 if _pitcher_mode else 0)
+    _scroll    = f"overflow-x:auto;-webkit-overflow-scrolling:touch"
+    _inner     = f"display:grid;grid-template-columns:{_grid_tmpl};align-items:center;gap:0 8px;min-width:{_min_w}px"
+    _hdr_s     = ("font-family:var(--mono);font-size:9px;letter-spacing:0.12em;"
                   "text-transform:uppercase;color:var(--fg-3);padding:5px 0 4px;"
                   "border-bottom:1px solid var(--line)")
-    _hdr_c     = _hdr_style + ";text-align:center"
+    _hdr_c     = _hdr_s + ";text-align:center"
+    _pit_hdr   = (f'<div style="{_hdr_c}" title="Moy. accordée vs ligue '
+                  f'(moy. {_pf_league_avg:.2f}/match)">Pitcher</div>' if _pitcher_mode else "")
 
-    _hh0, _hh1 = st.columns([6, 0.7], gap="small")
-    _pit_lbl   = f" · Pitcher" if _pitcher_mode else ""
-    _hh0.markdown(
-        f'<div style="{_hdr_style}">Carte · <span class="t1-hide-mobile">Tendance · </span>'
-        f'{_stat_hdr}<span class="t1-hide-mobile"> · M</span> · Match{_pit_lbl}</div>',
-        unsafe_allow_html=True,
-    )
+    _hh0, _hh1 = st.columns([9, 0.7], gap="small")
+    with _hh0:
+        st.markdown(
+            f'<div style="{_scroll}"><div style="{_inner};padding-bottom:1px">'
+            f'<div style="{_hdr_s}">Carte</div>'
+            f'<div style="{_hdr_c}">Tendance</div>'
+            f'<div style="{_hdr_c}">{_stat_hdr}</div>'
+            f'<div style="{_hdr_c}">M</div>'
+            f'<div style="{_hdr_c}">Match</div>'
+            f'{_pit_hdr}'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
     with _hh1:
         st.markdown(f'<div style="{_hdr_c}">Excl.</div>', unsafe_allow_html=True)
         if _has_excl:
@@ -651,57 +664,58 @@ div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-of-type bu
         )
         _name_style = "text-decoration:line-through;color:var(--fg-3)" if _excl else ""
 
-        # Stat + pitcher (mode pitcher)
+        # Cellule stat
         if _pitcher_mode:
             _adj_val  = row.get("_adj_score")
             _base_moy = f'{row["moyenne"]:.2f}'
             _adj_str  = f'{float(_adj_val):.2f}' if (_adj_val is not None and _adj_val == _adj_val) else _base_moy
-            _stat_html = (
-                f'<span style="font-size:11px;color:var(--pos);font-weight:600">{_adj_str}</span>'
-                f'<span style="font-size:9px;color:var(--fg-3);margin-left:2px">{_base_moy}</span>'
+            _stat_cell = (
+                f'<div style="opacity:{_alpha};text-align:center;font-family:var(--mono)">'
+                f'<div style="font-size:11px;color:var(--pos);font-weight:600">{_adj_str}</div>'
+                f'<div style="font-size:9px;color:var(--fg-3)">{_base_moy}</div></div>'
             )
             _pf_info2 = _pf_slug_map.get(_slug)
             if _pf_info2:
                 _pp_slug2, _pp_factor2 = _pf_info2
-                _pit_html = (
-                    f'<span style="font-size:9px;color:var(--fg-1);font-family:var(--mono)">'
-                    f'{_pitcher_short(_pp_slug2)}</span>'
-                    f'{_factor_html(_pp_factor2)}'
+                _pit_cell = (
+                    f'<div style="opacity:{_alpha};text-align:center;font-family:var(--mono)">'
+                    f'<div style="font-size:10px;color:var(--fg-1)">{_pitcher_short(_pp_slug2)}</div>'
+                    f'<div>{_factor_html(_pp_factor2)}</div></div>'
                 )
             else:
-                _pit_html = '<span style="font-size:9px;color:var(--fg-3)">—</span>'
+                _pit_cell = f'<div style="text-align:center;font-size:9px;color:var(--fg-3)">—</div>'
         else:
-            _stat_html = f'<span style="font-size:11px;color:var(--pos);font-weight:600;font-family:var(--mono)">{_moy}</span>'
-            _pit_html  = ""
+            _stat_cell = (
+                f'<div style="opacity:{_alpha};text-align:center;padding:8px 0;'
+                f'font-family:var(--mono);font-size:11px;color:var(--pos)">{_moy}</div>'
+            )
+            _pit_cell = ""
 
-        _c_main, _c5 = st.columns([6, 0.7], vertical_alignment="center", gap="small")
+        _c_main, _c5 = st.columns([9, 0.7], vertical_alignment="center", gap="small")
 
         with _c_main:
             st.markdown(
-                f'<div style="opacity:{_alpha};padding:3px 0;display:flex;flex-wrap:wrap;'
-                f'align-items:center;gap:3px 10px">'
-                # Bloc nom + meta (flex:1 → prend l'espace disponible)
-                f'<div style="flex:1;min-width:110px">'
+                f'<div style="{_scroll}"><div style="{_inner};padding:3px 0">'
+                # Carte
+                f'<div style="opacity:{_alpha}">'
                 f'<a href="https://sorare.com/fr/mlb/players/{_slug}" target="_blank"'
                 f' class="sorare-link t1-name" style="{_name_style}">{row["player_name"]}{_card_suffix}</a>'
                 f'<div class="t1-meta">'
                 f'<span style="color:{_rar_col}">{_rar_lbl}</span>'
                 f'<span style="color:var(--fg-3)">·</span><span>{_pos}</span>'
-                f'{_is_tag}{_pp_tag}'
-                f'</div>'
-                f'</div>'
-                # Sparkline (masqué sur mobile)
-                f'<div class="t1-hide-mobile" style="flex:0 0 auto">{_spark}</div>'
+                f'{_is_tag}{_pp_tag}</div></div>'
+                # Tendance
+                f'<div style="opacity:{_alpha};text-align:center">{_spark}</div>'
                 # Stat
-                f'<div style="flex:0 0 auto;text-align:right">{_stat_html}</div>'
-                # Nb matchs (masqué sur mobile)
-                f'<div class="t1-hide-mobile" style="flex:0 0 22px;text-align:center;'
-                f'font-family:var(--mono);font-size:10px;color:var(--fg-3)">{_matchs}</div>'
+                + _stat_cell
+                # Nb matchs
+                + f'<div style="opacity:{_alpha};text-align:center;font-family:var(--mono);'
+                f'font-size:10px;color:var(--fg-3)">{_matchs}</div>'
                 # Match
-                f'<div style="flex:0 0 auto">{_match_html}</div>'
-                # Pitcher (mode pitcher)
-                + (f'<div style="flex:0 0 auto;text-align:center">{_pit_html}</div>' if _pitcher_mode else "")
-                + f'</div>',
+                + f'<div style="display:flex;justify-content:center">{_match_html}</div>'
+                # Pitcher (optionnel)
+                + _pit_cell
+                + f'</div></div>',
                 unsafe_allow_html=True,
             )
 
