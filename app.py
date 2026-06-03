@@ -393,7 +393,7 @@ a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); 
 /* ── Filter panel header ── */
 .filt-head {
   display:flex; align-items:center; gap:10px;
-  padding:10px 0 11px; border-bottom:1px solid var(--line); margin-bottom:12px;
+  padding:11px 0 12px; border-bottom:1px solid var(--line); margin-bottom:14px;
 }
 .filt-head .t {
   font-family:var(--mono); font-size:12px; font-weight:600;
@@ -405,24 +405,40 @@ a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); 
 }
 /* ── Vertical separator (between filter groups) ── */
 .vsep { width:1px; height:52px; background:var(--line); margin:26px auto 0; }
-/* ── st.pills ── */
+/* ── st.pills — état par défaut ── */
 [data-testid="stPills"] button {
   border:1px solid var(--line-2)!important; background:var(--bg-2)!important;
   color:var(--fg-2)!important; border-radius:7px!important;
   font-family:var(--mono)!important; font-size:12px!important; font-weight:500!important;
-  padding:5px 10px!important; min-height:0!important; transition:all .13s!important;
+  padding:7px 12px!important; min-height:0!important; transition:all .13s!important;
 }
 [data-testid="stPills"] button:hover { border-color:var(--fg-3)!important; color:var(--fg-1)!important; }
+/* ── st.pills — sélectionné (vert) ── */
 [data-testid="stPills"] button[aria-checked="true"],
 [data-testid="stPills"] button[kind="pillsActive"],
 [data-testid="stPills"] [data-testid="stBaseButton-pillsActive"] {
   border-color:rgba(47,217,142,.50)!important;
   color:var(--pos)!important; background:rgba(47,217,142,.13)!important;
 }
-[data-testid="stPills"] label p {
+/* ── labels pills + widgets ── */
+[data-testid="stPills"] label p,
+div[data-testid="stWidgetLabel"] p {
   font-family:var(--mono)!important; font-size:10px!important; font-weight:600!important;
   letter-spacing:.15em!important; text-transform:uppercase!important;
-  color:var(--fg-3)!important; margin-bottom:6px!important;
+  color:var(--fg-3)!important; margin-bottom:8px!important;
+}
+/* ── selectbox — border-radius 7px (override global 0) ── */
+div[data-baseweb="select"] > div {
+  border-radius:7px!important; min-height:38px!important;
+}
+div[data-baseweb="select"] > div:hover { border-color:var(--fg-3)!important; }
+/* ── number_input — border-radius 7px ── */
+div[data-testid="stNumberInput"] input {
+  border-radius:7px 0 0 7px!important; text-align:center!important;
+}
+div[data-testid="stNumberInput"] button {
+  background:var(--bg-2)!important; border:1px solid var(--line-2)!important;
+  color:var(--fg-2)!important;
 }
 /* ── Bordered container → panel look ── */
 [data-testid="stVerticalBlockBorderWrapper"] {
