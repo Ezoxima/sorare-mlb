@@ -122,18 +122,26 @@ def _upsert_freshness(engine, table_name: str, freshness_date=None) -> None:
         """), {"t": table_name, "fd": freshness_date})
 
 
+def _to_utc(val) -> "pd.Timestamp | None":
+    """Convertit une valeur datetime (avec ou sans tzinfo) en pd.Timestamp UTC."""
+    if val is None:
+        return None
+    ts = pd.Timestamp(val)
+    return ts.tz_convert("UTC") if ts.tzinfo is not None else ts.tz_localize("UTC")
+
+
 def _query_max_game_date(engine, table: str) -> "pd.Timestamp | None":
     """Retourne MAX(game_date) depuis mlb.<table>."""
     with engine.connect() as conn:
         row = conn.execute(text(f"SELECT MAX(game_date) FROM mlb.{table}")).fetchone()
-    return pd.Timestamp(row[0], tz="UTC") if row and row[0] else None
+    return _to_utc(row[0]) if row else None
 
 
 def _query_min_next_game_date(engine) -> "pd.Timestamp | None":
     """Retourne MIN(next_game_date) depuis mlb.gallery_stats_agg."""
     with engine.connect() as conn:
         row = conn.execute(text("SELECT MIN(next_game_date) FROM mlb.gallery_stats_agg")).fetchone()
-    return pd.Timestamp(row[0], tz="UTC") if row and row[0] else None
+    return _to_utc(row[0]) if row else None
 
 
 def _all_fixtures(headers: dict) -> list[dict]:
