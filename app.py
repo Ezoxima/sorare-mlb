@@ -392,8 +392,12 @@ a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); 
 
 /* ── Filter panel header ── */
 .filt-head {
-  display:flex; align-items:center; gap:10px;
+  display:flex; align-items:center; gap:8px;
   padding:11px 0 12px; border-bottom:1px solid var(--line); margin-bottom:14px;
+}
+.filt-chev {
+  font-family:var(--mono)!important; font-size:10px!important; color:var(--fg-3)!important;
+  line-height:1; flex-shrink:0;
 }
 .filt-head .t {
   font-family:var(--mono)!important; font-size:12px!important; font-weight:600!important;
@@ -609,6 +613,7 @@ _prev_fen = st.session_state.get("filter_fen", "10 matchs") or "10 matchs"
 with st.container(border=True):
     st.markdown(
         f'<div class="filt-head">'
+        f'<span class="filt-chev">∧</span>'
         f'<span class="t">⚙ FILTRES</span>'
         f'<span class="r">{_prev_fen.split()[0]} MATCHS · {_prev_cat}</span>'
         f'</div>',
@@ -622,7 +627,7 @@ with st.container(border=True):
 
     _cat = cat_c.pills(
         "Catégorie", ["HITTING", "PITCHING"],
-        format_func=lambda x: ("⚾ " if x == "HITTING" else "⚡ ") + x,
+        format_func=lambda x: ("● " if x == "HITTING" else "⚡ ") + x,
         default="HITTING", key="filter_cat",
     )
     categorie = _cat or "HITTING"
@@ -650,10 +655,19 @@ with st.container(border=True):
         "Jour de match", _day_labels, index=_default_idx, key="sel_day"
     )
 
-    target = int(obj_c.number_input(
-        "Objectif / match", min_value=0, value=0, step=1, format="%d",
-        key="filter_target",
-    ))
+    with obj_c:
+        _oi, _or, _oh = st.columns([3, 1, 1])
+        target = int(_oi.number_input(
+            "Objectif / match", min_value=0, value=0, step=1, format="%d",
+            key="filter_target",
+        ))
+        _or.markdown('<div style="padding-top:28px"></div>', unsafe_allow_html=True)
+        if _or.button("↺", key="target_reset", help="Réinitialiser à 0"):
+            st.session_state["filter_target"] = 0
+            st.rerun()
+        _oh.markdown('<div style="padding-top:28px"></div>', unsafe_allow_html=True)
+        _oh.button("ⓘ", key="target_info",
+                   help="Seuil visuel dans le graphique historique", disabled=True)
 
 if _sel_day_label != "Tous les jours" and _sel_day_label in _day_labels:
     sel_day = _avail_days[_day_labels.index(_sel_day_label) - 1]

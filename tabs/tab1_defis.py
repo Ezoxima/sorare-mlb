@@ -41,6 +41,7 @@ def render(ctx: dict) -> None:
     with st.container(border=True):
         st.markdown(
             f'<div class="filt-head">'
+            f'<span class="filt-chev">∧</span>'
             f'<span class="t">🏆 DÉFIS JOURNALIERS</span>'
             f'<span class="r">{_tab1_day_label.upper()}</span>'
             f'</div>',
