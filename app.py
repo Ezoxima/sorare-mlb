@@ -389,6 +389,46 @@ a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); 
 .empty-state { padding: 40px 20px; text-align: center; color: var(--fg-2); font-size: 11px; }
 .spark-line { stroke: var(--accent); stroke-width: 1.2; fill: none; }
 .spark-fill { fill: var(--accent); opacity: 0.1; }
+
+/* ── Filter panel header ── */
+.filt-head {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 0 11px; border-bottom:1px solid var(--line); margin-bottom:12px;
+}
+.filt-head .t {
+  font-family:var(--mono); font-size:12px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--fg-1);
+}
+.filt-head .r {
+  margin-left:auto; font-family:var(--mono); font-size:10px;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--fg-3);
+}
+/* ── Vertical separator (between filter groups) ── */
+.vsep { width:1px; height:52px; background:var(--line); margin:26px auto 0; }
+/* ── st.pills ── */
+[data-testid="stPills"] button {
+  border:1px solid var(--line-2)!important; background:var(--bg-2)!important;
+  color:var(--fg-2)!important; border-radius:7px!important;
+  font-family:var(--mono)!important; font-size:12px!important; font-weight:500!important;
+  padding:5px 10px!important; min-height:0!important; transition:all .13s!important;
+}
+[data-testid="stPills"] button:hover { border-color:var(--fg-3)!important; color:var(--fg-1)!important; }
+[data-testid="stPills"] button[aria-checked="true"],
+[data-testid="stPills"] button[kind="pillsActive"],
+[data-testid="stPills"] [data-testid="stBaseButton-pillsActive"] {
+  border-color:rgba(47,217,142,.50)!important;
+  color:var(--pos)!important; background:rgba(47,217,142,.13)!important;
+}
+[data-testid="stPills"] label p {
+  font-family:var(--mono)!important; font-size:10px!important; font-weight:600!important;
+  letter-spacing:.15em!important; text-transform:uppercase!important;
+  color:var(--fg-3)!important; margin-bottom:6px!important;
+}
+/* ── Bordered container → panel look ── */
+[data-testid="stVerticalBlockBorderWrapper"] {
+  border-color:var(--line)!important; background:var(--bg-1)!important;
+  border-radius:11px!important; padding:4px 14px 14px!important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -540,17 +580,32 @@ else:
     _ticker_day = today_paris
 render_ticker(df_all, sel_manager, _ticker_day)
 
-# ── Filtres principaux (expander — accessible mobile et desktop) ───────────────
+# ── Filtres principaux ────────────────────────────────────────────────────────
 
-with st.expander("⚙️ Filtres", expanded=False):
-    _ef1, _ef2, _ef3, _ef4 = st.columns([1, 2, 1, 2])
-    with _ef1:
-        _cat = st.segmented_control(
-            "Catégorie", ["HITTING", "PITCHING"],
-            format_func=lambda x: ("⚾ " if x == "HITTING" else "⚡ ") + x,
-            default="HITTING", key="filter_cat",
-        )
-        categorie = _cat or "HITTING"
+_prev_cat = st.session_state.get("filter_cat", "HITTING") or "HITTING"
+_prev_fen = st.session_state.get("filter_fen", "10 matchs") or "10 matchs"
+
+with st.container(border=True):
+    st.markdown(
+        f'<div class="filt-head">'
+        f'<span class="t">⚙ FILTRES</span>'
+        f'<span class="r">{_prev_fen.split()[0]} MATCHS · {_prev_cat}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    cat_c, s1, stat_c, s2, fen_c, s3, day_c, s4, obj_c = st.columns(
+        [1.5, 0.08, 3.0, 0.08, 1.3, 0.08, 1.8, 0.08, 1.9]
+    )
+    for _sp in (s1, s2, s3, s4):
+        _sp.markdown('<div class="vsep"></div>', unsafe_allow_html=True)
+
+    _cat = cat_c.pills(
+        "Catégorie", ["HITTING", "PITCHING"],
+        format_func=lambda x: ("⚾ " if x == "HITTING" else "⚡ ") + x,
+        default="HITTING", key="filter_cat",
+    )
+    categorie = _cat or "HITTING"
+
     stats_dispo = (
         df_all[df_all["category"] == categorie][["stat_short_name", "stat"]]
         .drop_duplicates().sort_values("stat_short_name")
@@ -558,30 +613,26 @@ with st.expander("⚙️ Filtres", expanded=False):
     stat_labels_list  = stats_dispo["stat_short_name"].tolist()
     stat_keys_list    = stats_dispo["stat"].tolist()
     stat_display_list = [_STAT_DISPLAY.get(s, s) for s in stat_labels_list]
-    with _ef2:
-        _sel_display = st.selectbox("Statistique", stat_display_list, key="filter_stat")
-    _sel_idx     = stat_display_list.index(_sel_display)
+    _sel_display     = stat_c.selectbox("Statistique", stat_display_list, key="filter_stat")
+    _sel_idx         = stat_display_list.index(_sel_display)
     sel_stat_label   = stat_labels_list[_sel_idx]
     sel_stat         = stat_keys_list[_sel_idx]
     sel_stat_display = _sel_display
-    with _ef3:
-        fenetre = st.segmented_control(
-            "Fenêtre", list(FENETRE_OPTIONS.keys()), default="10 matchs", key="filter_fen",
-        ) or "10 matchs"
-    with _ef4:
-        _sel_day_label = st.selectbox("Jour de match", _day_labels, index=_default_idx, key="sel_day")
 
-    _ef5, _ef6 = st.columns([3, 1])
-    with _ef5:
-        target = st.number_input(
-            "🎯 Objectif", min_value=0, value=0, step=1, format="%d",
-            help="Seuil visuel dans le graphique historique", key="filter_target",
-        )
-    with _ef6:
-        st.markdown('<div style="padding-top:22px"></div>', unsafe_allow_html=True)
-        if st.button("⟳", key="main_rerun", help="Rafraîchir"):
-            st.cache_data.clear()
-            st.rerun()
+    fenetre = fen_c.pills(
+        "Fenêtre", list(FENETRE_OPTIONS.keys()),
+        format_func=lambda x: x.split()[0],
+        default="10 matchs", key="filter_fen",
+    ) or "10 matchs"
+
+    _sel_day_label = day_c.selectbox(
+        "Jour de match", _day_labels, index=_default_idx, key="sel_day"
+    )
+
+    target = int(obj_c.number_input(
+        "Objectif / match", min_value=0, value=0, step=1, format="%d",
+        key="filter_target",
+    ))
 
 if _sel_day_label != "Tous les jours" and _sel_day_label in _day_labels:
     sel_day = _avail_days[_day_labels.index(_sel_day_label) - 1]

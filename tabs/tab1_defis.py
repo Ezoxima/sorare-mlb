@@ -34,34 +34,54 @@ def render(ctx: dict) -> None:
 
     _postes_dispo = sorted(df_today["position_agg"].dropna().unique())
 
-    # ── Barre de filtres (une rangée, pills) ─────────────────────────────────
+    # ── Barre de filtres défis ────────────────────────────────────────────────
     _RARITY_OPTS  = {"Limited": "limited", "Rare": "rare", "Super Rare": "super_rare", "Unique": "unique"}
     _RARITY_ICONS = {"Limited": "🟡", "Rare": "🔴", "Super Rare": "🔵", "Unique": "🟣"}
 
-    _fc = st.columns([3, 1, 2, 1, 2] if categorie == "HITTING" else [3, 1, 2, 1])
-    _rar_label = (_fc[0].pills(
-        "Rareté défis", list(_RARITY_OPTS.keys()),
-        format_func=lambda x: f"{_RARITY_ICONS[x]} {x}",
-        default="Limited", key="tab1_task_rarity",
-    ) or "Limited")
-    _rar_val = _RARITY_OPTS[_rar_label]
-    _tasks   = load_sorare_tasks(_rar_val)
-
-    _tab1_saison    = _fc[1].pills("Saison", ["IS", "Classic"], key="tab1_saison")
-    _tab1_poste     = _fc[2].pills("Poste", _postes_dispo, key="tab1_poste")
-    _tab1_all_games = (_fc[3].pills(
-        "Tendances", ["Matchs joués", "Tous les matchs"],
-        format_func=lambda x: "Joués" if x == "Matchs joués" else "Tous",
-        default="Matchs joués", key="tab1_all_games",
-    ) or "Matchs joués") == "Tous les matchs"
-    _pitcher_mode = False
-    if categorie == "HITTING":
-        _tri = _fc[4].pills(
-            "Tri", ["Historique", "vs Pitcher"],
-            format_func=lambda x: ("📈 " if x == "Historique" else "🆚 ") + x,
-            default="Historique", key="tab1_tri_mode",
+    with st.container(border=True):
+        st.markdown(
+            f'<div class="filt-head">'
+            f'<span class="t">🏆 DÉFIS JOURNALIERS</span>'
+            f'<span class="r">{_tab1_day_label.upper()}</span>'
+            f'</div>',
+            unsafe_allow_html=True,
         )
-        _pitcher_mode = (_tri or "Historique") == "vs Pitcher"
+        if categorie == "HITTING":
+            rar_c, s1, sai_c, s2, pos_c, s3, ten_c, s4, tri_c = st.columns(
+                [2.7, 0.1, 1.0, 0.1, 1.3, 0.1, 1.15, 0.1, 1.7]
+            )
+            _seps = (s1, s2, s3, s4)
+        else:
+            rar_c, s1, sai_c, s2, pos_c, s3, ten_c = st.columns(
+                [2.7, 0.1, 1.0, 0.1, 1.3, 0.1, 1.15]
+            )
+            tri_c, _seps = None, (s1, s2, s3)
+        for _sp in _seps:
+            _sp.markdown('<div class="vsep"></div>', unsafe_allow_html=True)
+
+        _rar_label = (rar_c.pills(
+            "Rareté défis", list(_RARITY_OPTS.keys()),
+            format_func=lambda x: f"{_RARITY_ICONS[x]} {x}",
+            default="Limited", key="tab1_task_rarity",
+        ) or "Limited")
+        _rar_val = _RARITY_OPTS[_rar_label]
+        _tasks   = load_sorare_tasks(_rar_val)
+
+        _tab1_saison    = sai_c.pills("Saison", ["IS", "Classic"], key="tab1_saison")
+        _tab1_poste     = pos_c.pills("Poste", _postes_dispo, key="tab1_poste")
+        _tab1_all_games = (ten_c.pills(
+            "Tendances", ["Matchs joués", "Tous les matchs"],
+            format_func=lambda x: "Joués" if x == "Matchs joués" else "Tous",
+            default="Matchs joués", key="tab1_all_games",
+        ) or "Matchs joués") == "Tous les matchs"
+        _pitcher_mode = False
+        if categorie == "HITTING" and tri_c is not None:
+            _tri = tri_c.pills(
+                "Tri", ["Historique", "vs Pitcher"],
+                format_func=lambda x: ("📈 " if x == "Historique" else "🆚 ") + x,
+                default="Historique", key="tab1_tri_mode",
+            )
+            _pitcher_mode = (_tri or "Historique") == "vs Pitcher"
 
     df_view = df_today.copy()
     if _tab1_saison == "IS":
