@@ -396,12 +396,13 @@ a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); 
   padding:11px 0 12px; border-bottom:1px solid var(--line); margin-bottom:14px;
 }
 .filt-head .t {
-  font-family:var(--mono); font-size:12px; font-weight:600;
-  letter-spacing:.12em; text-transform:uppercase; color:var(--fg-1);
+  font-family:var(--mono)!important; font-size:12px!important; font-weight:600!important;
+  letter-spacing:.12em!important; text-transform:uppercase!important; color:var(--fg-1)!important;
 }
 .filt-head .r {
-  margin-left:auto; font-family:var(--mono); font-size:10px;
-  letter-spacing:.1em; text-transform:uppercase; color:var(--fg-3);
+  margin-left:auto; font-family:var(--mono)!important; font-size:10px!important;
+  font-weight:400!important; letter-spacing:.1em!important;
+  text-transform:uppercase!important; color:var(--fg-3)!important;
 }
 /* ── Vertical separator (between filter groups) ── */
 .vsep { width:1px; height:52px; background:var(--line); margin:26px auto 0; }
@@ -410,6 +411,7 @@ a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); 
   border:1px solid var(--line-2)!important; background:var(--bg-2)!important;
   color:var(--fg-2)!important; border-radius:7px!important;
   font-family:var(--mono)!important; font-size:12px!important; font-weight:500!important;
+  text-transform:none!important;
   padding:7px 12px!important; min-height:0!important; transition:all .13s!important;
 }
 [data-testid="stPills"] button:hover { border-color:var(--fg-3)!important; color:var(--fg-1)!important; }
@@ -420,11 +422,14 @@ a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); 
   border-color:rgba(47,217,142,.50)!important;
   color:var(--pos)!important; background:rgba(47,217,142,.13)!important;
 }
-/* ── labels pills + widgets ── */
+/* ── labels groupes (CATÉGORIE, STATISTIQUE…) — même style que .filt-head .r ── */
 [data-testid="stPills"] label p,
-div[data-testid="stWidgetLabel"] p {
-  font-family:var(--mono)!important; font-size:10px!important; font-weight:600!important;
-  letter-spacing:.15em!important; text-transform:uppercase!important;
+[data-testid="stPills"] label,
+div[data-testid="stWidgetLabel"] p,
+div[data-testid="stWidgetLabel"] label,
+div[data-testid="stWidgetLabel"] span {
+  font-family:var(--mono)!important; font-size:10px!important; font-weight:400!important;
+  letter-spacing:.1em!important; text-transform:uppercase!important;
   color:var(--fg-3)!important; margin-bottom:8px!important;
 }
 /* ── selectbox — border-radius 7px (override global 0) ── */
