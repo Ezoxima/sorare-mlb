@@ -96,6 +96,46 @@ def get_gallery_slugs(engine) -> list[str]:
 
 # ── Helpers communs ────────────────────────────────────────────────────────────
 
+def _ensure_freshness_table(engine) -> None:
+    """Crée mlb.data_freshness si elle n'existe pas encore."""
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS mlb.data_freshness (
+                table_name      TEXT PRIMARY KEY,
+                freshness_date  TIMESTAMPTZ,
+                refreshed_at    TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+
+
+def _upsert_freshness(engine, table_name: str, freshness_date=None) -> None:
+    """Upsert la date de fraîcheur d'une table dans mlb.data_freshness."""
+    if freshness_date is None:
+        freshness_date = pd.Timestamp.now(tz="UTC")
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO mlb.data_freshness (table_name, freshness_date, refreshed_at)
+            VALUES (:t, :fd, NOW())
+            ON CONFLICT (table_name) DO UPDATE
+              SET freshness_date = EXCLUDED.freshness_date,
+                  refreshed_at   = EXCLUDED.refreshed_at
+        """), {"t": table_name, "fd": freshness_date})
+
+
+def _query_max_game_date(engine, table: str) -> "pd.Timestamp | None":
+    """Retourne MAX(game_date) depuis mlb.<table>."""
+    with engine.connect() as conn:
+        row = conn.execute(text(f"SELECT MAX(game_date) FROM mlb.{table}")).fetchone()
+    return pd.Timestamp(row[0], tz="UTC") if row and row[0] else None
+
+
+def _query_min_next_game_date(engine) -> "pd.Timestamp | None":
+    """Retourne MIN(next_game_date) depuis mlb.gallery_stats_agg."""
+    with engine.connect() as conn:
+        row = conn.execute(text("SELECT MIN(next_game_date) FROM mlb.gallery_stats_agg")).fetchone()
+    return pd.Timestamp(row[0], tz="UTC") if row and row[0] else None
+
+
 def _all_fixtures(headers: dict) -> list[dict]:
     """Retourne tous les fixtures CLASSIC triés par gw_int croissant."""
     data = _api_post({
@@ -305,24 +345,34 @@ def update_game_infos(engine, headers: dict, all_fixtures: list) -> None:
 # ── 3. Game scores par GW ──────────────────────────────────────────────────────
 
 def update_gw_scores(engine, headers: dict, all_fixtures: list) -> None:
-    gws_done = _gws_in_db(engine, "game_scores")
-    missing  = [f for f in all_fixtures if not f["canCompose"] and f["gameWeek"] not in gws_done]
+    gws_done  = _gws_in_db(engine, "game_scores")
+    closed    = [f for f in all_fixtures if not f["canCompose"]]
+    open_gws  = [f for f in all_fixtures if f["canCompose"]]
 
-    if not missing:
+    # GW fermées manquantes + re-fetch systématique des 2 dernières (matchs arrivent en retard)
+    refetch_gws = {f["gameWeek"] for f in closed[-2:]}
+    seen: dict = {}
+    for f in closed:
+        if f["gameWeek"] not in gws_done or f["gameWeek"] in refetch_gws:
+            seen[f["gameWeek"]] = f
+    to_process = sorted(seen.values(), key=lambda f: f["gameWeek"])
+
+    # GW en cours : on fetch les matchs déjà joués
+    to_process += open_gws
+
+    if not to_process:
         print("  A jour.")
         return
 
-    gw_range = f"GW{missing[0]['gameWeek']} a GW{missing[-1]['gameWeek']}"
-    print(f"  {len(missing)} GW manquantes ({gw_range})")
-
-    for i, f in enumerate(missing):
+    for i, f in enumerate(to_process):
         gw_int       = f["gameWeek"]
         fixture_info = {"gw_int": gw_int}
+        is_open      = f["canCompose"]
+        tag          = " (en cours)" if is_open else (" (re-fetch)" if gw_int in gws_done else "")
 
-        # IDs depuis mlb.games (mis à jour à l'étape précédente)
         game_metas = _game_ids_from_db(engine, gw_int)
         if not game_metas:
-            print(f"  [{i+1}/{len(missing)}] GW{gw_int} — aucun match en base, ignoré")
+            print(f"  GW{gw_int}{tag} — aucun match en base, ignoré")
             continue
 
         all_score_rows, all_detail_rows, all_player_rows = [], [], []
@@ -342,7 +392,7 @@ def update_gw_scores(engine, headers: dict, all_fixtures: list) -> None:
         _store_gw_scores(engine, all_score_rows, all_detail_rows, gw_int)
         if all_player_rows:
             _store_players_seen(engine, all_player_rows)
-        print(f"  [{i+1}/{len(missing)}] GW{gw_int} — {n_played}/{len(game_metas)} matchs")
+        print(f"  [{i+1}/{len(to_process)}] GW{gw_int}{tag} — {n_played}/{len(game_metas)} matchs")
         time.sleep(SLEEP)
 
 
@@ -726,6 +776,16 @@ def export_to_parquet(engine) -> None:
         except Exception:
             pass  # Table absente si fetch_pitch_counts n'a pas encore tourné
 
+        try:
+            _df(conn, """
+                SELECT table_name, freshness_date, refreshed_at
+                FROM mlb.data_freshness
+                ORDER BY table_name
+            """).to_parquet(data_dir / "data_freshness.parquet", index=False)
+            print("  data_freshness.parquet")
+        except Exception:
+            pass  # Table absente si la migration n'a pas encore tourné
+
     print("  Export terminé.")
 
 
@@ -749,18 +809,22 @@ if __name__ == "__main__":
         return _s <= n <= _e
 
     engine, api_headers, manager_list = _load_config()
+    _ensure_freshness_table(engine)
 
     if _run(1):
         print("\n[1/11] Players & équipes (lent)...")
         df_teams = fetch_teams(api_headers)
         store_teams(engine, df_teams)
         fetch_and_store_players(engine, df_teams["team_slug"].tolist(), api_headers)
+        _upsert_freshness(engine, "players")
+        _upsert_freshness(engine, "player_injuries")
 
     _gallery_refreshed = False
     if _run(2):
         print("\n[2/11] Galerie...")
         refresh_gallery(engine, manager_list, api_headers)
         _gallery_refreshed = True
+        _upsert_freshness(engine, "gallery_players")
 
     _snap_before = _score_snapshot(engine) if (_run(3) or _run(5) or _run(6)) else None
 
@@ -775,11 +839,13 @@ if __name__ == "__main__":
     if _run(3):
         print("\n[3/11] Game infos (box scores)...")
         update_game_infos(engine, api_headers, all_fixtures)
+        _upsert_freshness(engine, "games")
 
     if _run(4):
         print("\n[4/11] Météo...")
         try:
             _weather_run(engine)
+            _upsert_freshness(engine, "game_weather")
         except Exception as e:
             print(f"  Avertissement météo : {e}")
 
@@ -797,16 +863,28 @@ if __name__ == "__main__":
     else:
         _scores_changed = True
 
+    if _run(5) or _run(6):
+        _max_gs  = _query_max_game_date(engine, "game_scores")
+        _max_gsd = _query_max_game_date(engine, "game_score_details")
+        if _max_gs:
+            _upsert_freshness(engine, "game_scores",        _max_gs)
+        if _max_gsd:
+            _upsert_freshness(engine, "game_score_details", _max_gsd)
+
     if _run(7):
         if not _scores_changed and not _gallery_refreshed and _gallery_stats_exists(engine):
             print("\n[7/11] Précalcul stats galerie... (skippé — aucun nouveau score ni changement galerie)")
         else:
             print("\n[7/11] Précalcul stats galerie...")
             precompute_gallery_stats(engine)
+            _min_ngd = _query_min_next_game_date(engine)
+            if _min_ngd:
+                _upsert_freshness(engine, "gallery_stats_agg", _min_ngd)
 
     if _run(8):
         print("\n[8/11] Prix cartes...")
         update_prices(engine, api_headers, include_gw_players=_args.prices_all)
+        _upsert_freshness(engine, "card_prices")
 
     if _run(9):
         print("\n[9/11] Prix d'achat (card trades)...")
@@ -831,6 +909,7 @@ if __name__ == "__main__":
         try:
             from fetch_pitcher_season_stats import run as era_run
             era_run(engine)
+            _upsert_freshness(engine, "pitcher_season_stats")
         except Exception as e:
             print(f"  Avertissement ERA+ : {e}")
 
@@ -838,6 +917,7 @@ if __name__ == "__main__":
         try:
             from fetch_pitch_counts import run as pc_run
             pc_run(engine)
+            _upsert_freshness(engine, "pitcher_game_pitches")
         except Exception as e:
             print(f"  Avertissement pitch counts : {e}")
 
@@ -862,5 +942,19 @@ if __name__ == "__main__":
                     _sentinel.write_text(str(_snap_ml))
             except Exception as e:
                 print(f"  Avertissement predictions ML : {e}")
+
+        # Ré-export data_freshness.parquet pour inclure les upserts pitcher du step 12
+        try:
+            _data_dir = Path(__file__).parent / "data"
+            with engine.connect() as _conn:
+                _res = _conn.execute(text(
+                    "SELECT table_name, freshness_date, refreshed_at FROM mlb.data_freshness ORDER BY table_name"
+                ))
+                pd.DataFrame(_res.fetchall(), columns=list(_res.keys())).to_parquet(
+                    _data_dir / "data_freshness.parquet", index=False
+                )
+            print("  data_freshness.parquet (màj step 12)")
+        except Exception as e:
+            print(f"  Avertissement data_freshness export : {e}")
 
     print("\nMise a jour complete !")

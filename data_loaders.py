@@ -155,6 +155,16 @@ def load_all_players_market() -> pd.DataFrame:
     return df
 
 
+@st.cache_data(ttl=3600)
+def load_data_freshness() -> "dict[str, pd.Timestamp]":
+    p = _DATA_DIR / "data_freshness.parquet"
+    if not p.exists():
+        return {}
+    df = pd.read_parquet(p)
+    df["freshness_date"] = pd.to_datetime(df["freshness_date"], utc=True, errors="coerce")
+    return df.set_index("table_name")["freshness_date"].dropna().to_dict()
+
+
 _SORARE_API = "https://api.sorare.com/graphql"
 _TASKS_QUERY = """
 {

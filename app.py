@@ -8,6 +8,7 @@ from data_loaders import (
     load_team_logos, _team_logo_html,
     render_ticker, render_statusbar, compact_multiselect,
     _matchup, _game_date_str, _team_abbr, _load_pp_today,
+    load_data_freshness,
     PARIS_TZ, FENETRE_OPTIONS, RARITY_ORDER, _DATA_DIR,
 )
 from tabs import (
@@ -52,7 +53,7 @@ st.markdown("""
   --fg-0:#e6ebf2; --fg-1:#aab4c2; --fg-2:#6b7585; --fg-3:#4a5260;
   --pos:#4ade80; --neg:#ff5d5d; --warn:#fbbf24; --info:#5fb3ff;
   --accent:#6ff0c8; --accent-2:#a78bfa;
-  --r-unique:#ac11ff; --r-superrare:#179eff; --r-rare:#de000b; --r-limited:#f7b100;
+  --r-unique:#ac11ff; --r-superrare:#179eff; --r-rare:#ea000c; --r-limited:#f7b100;
   --mono:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
   --sans:'Inter',system-ui,-apple-system,sans-serif;
 }
@@ -307,8 +308,17 @@ hr { border-color: var(--line) !important; margin: 10px 0 !important; }
 .tag.pp { color: var(--warn); border-color: rgba(251,191,36,0.35); }
 .tag.rarity-unique     { color: var(--r-unique);    border-color: rgba(172,17,255,0.35); }
 .tag.rarity-super_rare { color: var(--r-superrare); border-color: rgba(23,158,255,0.35); }
-.tag.rarity-rare       { color: var(--r-rare);      border-color: rgba(222,0,11,0.35); }
+.tag.rarity-rare       { color: var(--r-rare);      border-color: rgba(234,0,12,0.35); }
 .tag.rarity-limited    { color: var(--r-limited);   border-color: rgba(247,177,0,0.35); }
+
+/* ── Rareté segmented control — couleur texte par option (4 boutons = unique à ce contrôle) ── */
+[data-testid="stSegmentedControl"]:has(button:nth-child(4)) button:nth-child(1) { color: #f7b100 !important; }
+[data-testid="stSegmentedControl"]:has(button:nth-child(4)) button:nth-child(2) { color: #ea000c !important; }
+[data-testid="stSegmentedControl"]:has(button:nth-child(4)) button:nth-child(3) { color: #179eff !important; }
+[data-testid="stSegmentedControl"]:has(button:nth-child(4)) button:nth-child(4) { color: #ac11ff !important; }
+
+/* ── Segmented controls — taille de bouton lisible ── */
+[data-testid="stSegmentedControl"] button { font-size: 12px !important; padding: 5px 14px !important; min-height: 34px; }
 
 /* ── Lineup 7-slot grid ── */
 .lineup-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-bottom: 12px; }
@@ -446,13 +456,11 @@ with st.sidebar:
         sel_manager = managers[0] if managers else None
         initials = "".join(p[0].upper() for p in (sel_manager or "??").split()[:2])
 
-    ncards_mgr = len(df_all[df_all["gallery_manager"] == sel_manager]) if sel_manager else 0
     st.markdown(
         f'<div class="manager-row">'
         f'<div class="manager-avatar">{initials}</div>'
         f'<div class="manager-info">'
         f'<div class="name">{sel_manager or "—"}</div>'
-        f'<div class="sub">{ncards_mgr} cartes</div>'
         f'</div></div>',
         unsafe_allow_html=True,
     )
@@ -469,6 +477,41 @@ with st.sidebar:
     sel_raretés = compact_multiselect("Raretés", raretés_dispo, key="filter_rar")
 
     st.divider()
+
+    # ── Fraîcheur des données ──────────────────────────────────────────────────
+    _freshness = load_data_freshness()
+
+    def _fmt_freshness(tables: list) -> str:
+        dates = [_freshness[t] for t in tables if t in _freshness]
+        if not dates:
+            return "—"
+        return min(dates).astimezone(PARIS_TZ).strftime("%d/%m %H:%M")
+
+    _freshness_groups = [
+        ("Prix joueurs",  ["card_prices"]),
+        ("Infos joueurs", ["players", "player_injuries"]),
+        ("Galerie",       ["gallery_players"]),
+        ("Matchs",        ["games", "pitcher_game_pitches", "pitcher_season_stats"]),
+        ("Météo",         ["game_weather"]),
+        ("Scores",        ["game_scores", "game_score_details"]),
+    ]
+    _rows_html = "".join(
+        f'<tr>'
+        f'<td style="color:var(--fg-2);padding:1px 6px 1px 0;white-space:nowrap">{label}</td>'
+        f'<td style="color:var(--fg-0);text-align:right;font-variant-numeric:tabular-nums">'
+        f'{_fmt_freshness(tables)}</td>'
+        f'</tr>'
+        for label, tables in _freshness_groups
+    )
+    st.markdown(
+        f'<div style="font-size:10px;margin-bottom:6px">'
+        f'<div style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--fg-3);'
+        f'text-transform:uppercase;margin-bottom:4px">Données</div>'
+        f'<table style="width:100%;border-collapse:collapse;font-family:var(--mono)">'
+        f'{_rows_html}</table></div>',
+        unsafe_allow_html=True,
+    )
+
     if st.button("⟳ Rafraîchir", use_container_width=True, key="sidebar_rerun"):
         st.cache_data.clear()
         st.rerun()
@@ -489,12 +532,25 @@ _day_labels  = ["Tous les jours"] + [d.strftime("%a %d %b") for d in _avail_days
 _today_label = today_paris.strftime("%a %d %b")
 _default_idx = _day_labels.index(_today_label) if _today_label in _day_labels else 0
 
+# ── Ticker (avant les filtres — jour lu depuis session_state) ─────────────────
+_sess_day = st.session_state.get("sel_day")
+if _sess_day and _sess_day != "Tous les jours" and _sess_day in _day_labels:
+    _ticker_day = _avail_days[_day_labels.index(_sess_day) - 1]
+else:
+    _ticker_day = today_paris
+render_ticker(df_all, sel_manager, _ticker_day)
+
 # ── Filtres principaux (expander — accessible mobile et desktop) ───────────────
 
 with st.expander("⚙️ Filtres", expanded=False):
-    _ef1, _ef2 = st.columns([1, 2])
+    _ef1, _ef2, _ef3, _ef4 = st.columns([1, 2, 1, 2])
     with _ef1:
-        categorie = st.radio("Catégorie", ["HITTING", "PITCHING"], horizontal=True, key="filter_cat")
+        _cat = st.segmented_control(
+            "Catégorie", ["HITTING", "PITCHING"],
+            format_func=lambda x: ("⚾ " if x == "HITTING" else "⚡ ") + x,
+            default="HITTING", key="filter_cat",
+        )
+        categorie = _cat or "HITTING"
     stats_dispo = (
         df_all[df_all["category"] == categorie][["stat_short_name", "stat"]]
         .drop_duplicates().sort_values("stat_short_name")
@@ -508,10 +564,10 @@ with st.expander("⚙️ Filtres", expanded=False):
     sel_stat_label   = stat_labels_list[_sel_idx]
     sel_stat         = stat_keys_list[_sel_idx]
     sel_stat_display = _sel_display
-
-    _ef3, _ef4 = st.columns([1, 2])
     with _ef3:
-        fenetre = st.selectbox("Fenêtre", list(FENETRE_OPTIONS.keys()), index=1, key="filter_fen")
+        fenetre = st.segmented_control(
+            "Fenêtre", list(FENETRE_OPTIONS.keys()), default="10 matchs", key="filter_fen",
+        ) or "10 matchs"
     with _ef4:
         _sel_day_label = st.selectbox("Jour de match", _day_labels, index=_default_idx, key="sel_day")
 
@@ -660,9 +716,6 @@ else:
     df_today["pred_median"] = float("nan")
     df_today["pred_lo"]     = float("nan")
     df_today["pred_hi"]     = float("nan")
-
-# ── Ticker ──────────────────────────────────────────────────────────────────────
-render_ticker(df_all, sel_manager, _day_filter)
 
 # ── Tabs ────────────────────────────────────────────────────────────────────────
 

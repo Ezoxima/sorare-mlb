@@ -33,25 +33,42 @@ def render(ctx: dict) -> None:
         _tab1_day_label = now_paris.strftime("%A %d %B").capitalize()
 
     _postes_dispo = sorted(df_today["position_agg"].dropna().unique())
-    _f1, _f2 = st.columns(2)
-    _tab1_saison = _f1.selectbox("Saison", ["Tous", "IS", "Classic"], key="tab1_saison")
-    _tab1_poste  = _f2.selectbox("Poste", ["Tous"] + _postes_dispo, key="tab1_poste")
-    _f3, _f4 = st.columns(2)
-    _tab1_all_games = _f3.selectbox(
-        "Tendances", ["Matchs joués", "Tous les matchs"], key="tab1_all_games"
-    ) == "Tous les matchs"
+
+    # ── Barre de filtres (une rangée, pills) ─────────────────────────────────
+    _RARITY_OPTS  = {"Limited": "limited", "Rare": "rare", "Super Rare": "super_rare", "Unique": "unique"}
+    _RARITY_ICONS = {"Limited": "🟡", "Rare": "🔴", "Super Rare": "🔵", "Unique": "🟣"}
+
+    _fc = st.columns([3, 1, 2, 1, 2] if categorie == "HITTING" else [3, 1, 2, 1])
+    _rar_label = (_fc[0].pills(
+        "Rareté défis", list(_RARITY_OPTS.keys()),
+        format_func=lambda x: f"{_RARITY_ICONS[x]} {x}",
+        default="Limited", key="tab1_task_rarity",
+    ) or "Limited")
+    _rar_val = _RARITY_OPTS[_rar_label]
+    _tasks   = load_sorare_tasks(_rar_val)
+
+    _tab1_saison    = _fc[1].pills("Saison", ["IS", "Classic"], key="tab1_saison")
+    _tab1_poste     = _fc[2].pills("Poste", _postes_dispo, key="tab1_poste")
+    _tab1_all_games = (_fc[3].pills(
+        "Tendances", ["Matchs joués", "Tous les matchs"],
+        format_func=lambda x: "Joués" if x == "Matchs joués" else "Tous",
+        default="Matchs joués", key="tab1_all_games",
+    ) or "Matchs joués") == "Tous les matchs"
     _pitcher_mode = False
     if categorie == "HITTING":
-        _pitcher_mode = _f4.radio(
-            "Tri", ["Historique", "vs Pitcher"], horizontal=True, key="tab1_tri_mode"
-        ) == "vs Pitcher"
+        _tri = _fc[4].pills(
+            "Tri", ["Historique", "vs Pitcher"],
+            format_func=lambda x: ("📈 " if x == "Historique" else "🆚 ") + x,
+            default="Historique", key="tab1_tri_mode",
+        )
+        _pitcher_mode = (_tri or "Historique") == "vs Pitcher"
 
     df_view = df_today.copy()
     if _tab1_saison == "IS":
         df_view = df_view[df_view["in_season_eligible"] == True]
     elif _tab1_saison == "Classic":
         df_view = df_view[df_view["in_season_eligible"] == False]
-    if _tab1_poste != "Tous":
+    if _tab1_poste is not None:
         df_view = df_view[df_view["position_agg"] == _tab1_poste]
 
     # ── Facteurs pitcher + helpers ────────────────────────────────────────────
@@ -153,6 +170,8 @@ def render(ctx: dict) -> None:
             _t5_name  = _t5_row.get("display_name") or _t5_slug
             _t5_spark = gen_bar_sparkline_svg(_t5_sparks.get(_t5_slug, []), w=87, h=20, target=target)
             _t5_rc    = _T5_RANK_COL[_t5_rank] if _t5_rank < 3 else "var(--fg-3)"
+            _t5_bgs   = ["rgba(247,177,0,0.08)", "rgba(170,180,194,0.06)", "rgba(205,127,50,0.06)"]
+            _t5_rowbg = f'background:{_t5_bgs[_t5_rank]};' if _t5_rank < 3 else ""
             if _pitcher_mode and "_adj_score" in _t5_row and _t5_row["_adj_score"] == _t5_row["_adj_score"]:
                 _t5_val = f'{_t5_row["_adj_score"]:.2f}'
             elif target > 0:
@@ -189,16 +208,16 @@ def render(ctx: dict) -> None:
             _t5_ts   = _t5_row.get("team_slug", "")
             _rows_html += (
                 f'<div style="display:grid;grid-template-columns:{_gcols};gap:0 8px;'
-                f'padding:7px 0;align-items:center">'
-                f'<div style="display:flex;align-items:center;gap:4px;min-width:0">'
-                f'<span style="font-size:8px;color:{_t5_rc};min-width:14px;text-align:right;'
+                f'padding:9px 4px;align-items:center;border-bottom:1px solid var(--line);{_t5_rowbg}">'
+                f'<div style="display:flex;align-items:center;gap:5px;min-width:0">'
+                f'<span style="font-size:10px;font-weight:800;color:{_t5_rc};min-width:18px;text-align:center;'
                 f'flex-shrink:0;font-family:var(--mono)">#{_t5_rank+1}</span>'
                 f'<a href="https://sorare.com/fr/mlb/players/{_t5_slug}" target="_blank" class="sorare-link"'
-                f' style="font-size:10px;font-weight:600;white-space:nowrap;'
+                f' style="font-size:11px;font-weight:600;white-space:nowrap;'
                 f'overflow:hidden;text-overflow:ellipsis;font-family:var(--mono)">{_t5_name}</a>'
                 f'</div>'
                 f'<div style="display:flex;align-items:center;justify-content:center">{_t5_spark}</div>'
-                f'<div style="text-align:center;font-size:11px;font-weight:700;color:var(--pos);'
+                f'<div style="text-align:center;font-size:14px;font-weight:800;color:var(--pos);'
                 f'font-variant-numeric:tabular-nums;font-family:var(--mono)">{_t5_val}</div>'
                 f'{_t5_reg_cell}'
                 f'<div style="display:flex;justify-content:center">{_t5_match_cell(_t5_ts)}</div>'
@@ -213,20 +232,13 @@ def render(ctx: dict) -> None:
             f'<div style="padding:12px 16px;min-width:0;overflow:hidden;'
             f'display:flex;flex-direction:column;align-items:flex-end">'
             f'<div style="border-left:1px solid var(--line);padding-left:14px">'
-            f'<div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg-3);'
-            f'margin-bottom:6px;display:flex;align-items:center;gap:6px;font-family:var(--mono)">'
+            f'<div style="font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--fg-2);'
+            f'margin-bottom:10px;display:flex;align-items:center;gap:6px;font-family:var(--mono)">'
             f'TOP 5 {_t5_mode_pill}</div>'
             f'{_rows_html}'
             f'</div>'
             f'</div>'
         )
-
-    # ── Filtre rareté tasks ───────────────────────────────────────────────────
-    _RARITY_OPTS = {"Limited": "limited", "Rare": "rare", "Super Rare": "super_rare", "Unique": "unique"}
-    _rar_label   = st.radio("Rareté défis", list(_RARITY_OPTS.keys()),
-                             horizontal=True, key="tab1_task_rarity")
-    _rar_val     = _RARITY_OPTS[_rar_label]
-    _tasks       = load_sorare_tasks(_rar_val)
 
     # Filtre df_view par rareté sélectionnée
     if not df_prices.empty and sel_manager:
@@ -296,11 +308,12 @@ def render(ctx: dict) -> None:
             state  = task.get("streak_state") or ""
             pct    = min(live / stgt * 100, 100) if stgt else 0
             bar_c  = "var(--pos)" if pct >= 100 else ("var(--info)" if task.get("engaged") else "var(--fg-3)")
+            _bc = _RAR_BORDER.get(_rar_val, "var(--line-2)")
             return (
-                f'<div style="padding:6px 0;border-bottom:1px solid var(--line)">'
-                f'<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">'
+                f'<div style="padding:10px 0 10px 10px;border-bottom:1px solid var(--line);border-left:2px solid {_bc}">'
+                f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">'
                 f'{icon_html}'
-                f'<span style="font-size:10px;font-weight:600;color:var(--fg-0)">{title}</span>'
+                f'<span style="font-size:11px;font-weight:700;color:var(--fg-0)">{title}</span>'
                 f'</div>'
                 f'<div style="height:3px;background:var(--bg-3);border-radius:2px">'
                 f'<div style="height:3px;width:{pct:.0f}%;background:{bar_c};border-radius:2px"></div>'
@@ -310,13 +323,14 @@ def render(ctx: dict) -> None:
 
         # Decisive player picker task
         prog_col = "var(--pos)" if progress >= tgt else "var(--fg-3)"
+        _bc = _RAR_BORDER.get(_rar_val, "var(--line-2)")
         return (
-            f'<div style="padding:6px 0;border-bottom:1px solid var(--line)">'
-            f'<div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">'
+            f'<div style="padding:10px 0 10px 10px;border-bottom:1px solid var(--line);border-left:2px solid {_bc}">'
+            f'<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
             f'{icon_html}'
-            f'<span style="font-size:10px;font-weight:600;color:var(--fg-0)">{title}</span>'
+            f'<span style="font-size:11px;font-weight:700;color:var(--fg-0)">{title}</span>'
             f'</div>'
-            f'<div style="font-size:9px;color:var(--fg-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
+            f'<div style="font-size:8px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'
             f'{desc}</div>'
             f'</div>'
         )
@@ -335,12 +349,12 @@ def render(ctx: dict) -> None:
     if _all_show_tasks:
         _ti_html = "".join(_task_html(t) for t in _all_show_tasks)
         _tasks_col_html = (
-            f'<div class="t1-tasks-col" style="padding:10px 14px;max-width:550px;overflow-y:auto;border-right:1px solid var(--line)">'
-            f'<div style="{_hs_t};margin-bottom:6px">Défis du jour</div>'
+            f'<div class="t1-tasks-col" style="padding:12px 16px;overflow-y:auto;border-right:1px solid var(--line)">'
+            f'<div style="{_hs_t};margin-bottom:10px;color:var(--fg-2)">Défis du jour</div>'
             f'{_ti_html}'
             f'</div>'
         )
-        _grid_cols = "auto 1fr"
+        _grid_cols = "1fr 1fr"
     else:
         _grid_cols = "1fr"
     st.markdown(
@@ -485,7 +499,7 @@ def render(ctx: dict) -> None:
         else:
             _t3_suffix = ""
         _top3_cards_html += (
-            f'<div style="flex:1;min-width:200px;max-width:420px">'
+            f'<div style="min-width:0">'
             + render_terminal_card(i, row, sel_stat_display,
                                    spark_values=spark_vals,
                                    picture_url=pic_url,
@@ -495,10 +509,9 @@ def render(ctx: dict) -> None:
             + '</div>'
         )
     st.markdown(
-        f'<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">'
-        f'<div style="display:flex;gap:8px;min-width:min-content">'
+        f'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'
         f'{_top3_cards_html}'
-        f'</div></div>',
+        f'</div>',
         unsafe_allow_html=True,
     )
 
