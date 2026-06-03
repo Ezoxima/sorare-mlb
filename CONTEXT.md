@@ -77,9 +77,11 @@ Always normalise to single-char before comparisons: `[:1]` then replace `"B"` �
 | Team | `mlb.teams` | `team_slug` |
 | Game | `mlb.games` | `game_id` |
 | Gameweek | `mlb.gameweeks` | `gw_int` |
-| Score per game | `mlb.game_scores` | `(player_slug, game_id)` |
-| Gallery card | `mlb.gallery_players` | `player_slug` |
+| Score per game | `mlb.game_scores` | `(player_slug, game_date, category)` |
+| Score detail | `mlb.game_score_details` | `(player_slug, game_date, stat, category)` |
+| Gallery card | `mlb.gallery_players` | `(player_slug, id_manager)` |
 | Card purchase price | `mlb.card_purchase_prices` | — |
+| Data freshness | `mlb.data_freshness` | `table_name` |
 
 ## Arena types
 
@@ -160,6 +162,25 @@ A player with both IS and Classic cards of the same rarity:
 - `_is_map` in `app.py` uses `.groupby("player_slug")["in_season_eligible"].any()` → `True` if any IS card exists
 - Tab1 expansion (`_card_info_map`) stores `in_season_eligible` **per card** — each expanded row shows the correct IS/CLASSIC tag
 - `calendar.parquet` `DISTINCT ON (player_slug, id_manager, card_display_rarity)` keeps only one card per rarity — do not rely on it for IS/Classic status
+
+## Fraîcheur des données (data_freshness)
+
+`mlb.data_freshness` centralise la date de dernière mise à jour de chaque table source.
+Peuplée par `update_data.py` après chaque étape, exportée en `data/data_freshness.parquet`.
+
+La sidebar affiche 6 groupes en lisant `load_data_freshness()` (retourne un `dict[table_name, Timestamp]`) :
+
+| Groupe sidebar | Tables trackées | Date affichée |
+|---|---|---|
+| Prix joueurs | `card_prices` | `freshness_date` |
+| Infos joueurs | `players`, `player_injuries` | min des deux |
+| Galerie | `gallery_players` | `freshness_date` |
+| Matchs | `games`, `pitcher_game_pitches`, `pitcher_season_stats` | min des trois |
+| Météo | `game_weather` | `freshness_date` |
+| Scores | `game_scores`, `game_score_details` | min des deux |
+
+`freshness_date` est `NOW()` pour les snapshots, `MAX(game_date)` pour les scores,
+`MIN(next_game_date)` pour `gallery_stats_agg`.
 
 ## Hitter prediction and DNP games
 

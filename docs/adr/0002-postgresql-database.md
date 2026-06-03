@@ -236,3 +236,40 @@ Météo par match. Source : Open-Meteo (gratuit).
 | `wind_label` | TEXT | out / in / cross_L / cross_R / dome / calm |
 | `condition` | TEXT | clear / cloudy / rain / dome |
 | `is_forecast` | BOOLEAN | True si météo prévisionnelle (avant le match) |
+
+---
+
+### `mlb.pitcher_season_stats`
+Stats saison des lanceurs (ERA+, FIP, etc.). Source : pybaseball via `fetch_pitcher_season_stats.py`.
+Une ligne par (joueur, saison).
+
+---
+
+### `mlb.pitcher_game_pitches`
+Nombre de lancers par match sur les 30 derniers jours. Source : MLB Stats API via `fetch_pitch_counts.py`.
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| `player_slug` | TEXT PK | Lanceur |
+| `game_date` | TIMESTAMPTZ PK | Date du match |
+| `pitches` | INTEGER | Nombre total de lancers |
+| `strikes` | INTEGER | Lancers strikes |
+| `batters_faced` | INTEGER | Frappeurs affrontés |
+| `innings_pitched_outs` | INTEGER | Retraits effectués |
+
+---
+
+### `mlb.data_freshness`
+Table centralisée de suivi de la fraîcheur des données. Un enregistrement par table source,
+mis à jour par `update_data.py` après chaque étape d'alimentation. Remplace les colonnes
+`updated_at` individuelles comme source de vérité pour la sidebar.
+
+| Colonne | Type | Description |
+|---------|------|-------------|
+| `table_name` | TEXT PK | Nom de la table source (ex: `game_scores`, `card_prices`) |
+| `freshness_date` | TIMESTAMPTZ | Date métier pertinente : `NOW()` pour les snapshots, `MAX(game_date)` pour les scores, `MIN(next_game_date)` pour `gallery_stats_agg` |
+| `refreshed_at` | TIMESTAMPTZ | Horodatage du run `update_data.py` qui a écrit cet enregistrement |
+
+Tables trackées : `players`, `player_injuries`, `gallery_players`, `games`, `game_weather`,
+`game_scores`, `game_score_details`, `gallery_stats_agg`, `card_prices`,
+`pitcher_season_stats`, `pitcher_game_pitches`.
