@@ -15,7 +15,7 @@ SLEEP      = 0.3
 _QUERY = """\
 {{
   user(slug: "{slug}") {{
-    trades(after: "{cursor}", first: 50) {{
+    trades(after: "{cursor}" sport: BASEBALL sortByEndDate: DESC) {{
       pageInfo {{ hasNextPage endCursor }}
       nodes {{
         __typename
@@ -23,7 +23,7 @@ _QUERY = """\
           id
           transactionDate
           anyCards {{ slug }}
-          price {{ eurCents }}
+          price {{ eurCents usdCents gbpCents }}
         }}
         ... on TokenAuction {{
           id
@@ -31,14 +31,14 @@ _QUERY = """\
           anyCards {{ slug }}
           userBuyer  {{ slug }}
           userSeller {{ slug }}
-          bestBid {{ amounts {{ eurCents }} }}
+          bestBid {{ amounts {{ eurCents usdCents gbpCents }} }}
         }}
         ... on TokenOffer {{
           id
           transactionDate
           sender {{ ... on User {{ slug }} }}
           senderSide   {{ anyCards {{ slug }} }}
-          receiverSide {{ amounts {{ eurCents }} }}
+          receiverSide {{ amounts {{ eurCents usdCents gbpCents }} }}
         }}
       }}
     }}
@@ -72,7 +72,10 @@ def fetch_trades(manager_slug: str, headers: dict) -> list[dict]:
             typename = node["__typename"]
 
             if typename == "TokenPrimaryOffer":
-                price_cents = (node.get("price") or {}).get("eurCents")
+                _price    = node.get("price") or {}
+                eur_cents = _price.get("eurCents")
+                usd_cents = _price.get("usdCents")
+                gbp_cents = _price.get("gbpCents")
                 for card in node.get("anyCards", []):
                     rows.append({
                         "card_slug":        card["slug"],
@@ -80,7 +83,9 @@ def fetch_trades(manager_slug: str, headers: dict) -> list[dict]:
                         "deal_id":          node["id"],
                         "deal_type":        "primary",
                         "transaction_date": node.get("transactionDate"),
-                        "price_eur_cents":  price_cents,
+                        "price_eur_cents":  eur_cents,
+                        "price_usd_cents":  usd_cents,
+                        "price_gbp_cents":  gbp_cents,
                     })
 
             elif typename == "TokenAuction":
@@ -90,7 +95,10 @@ def fetch_trades(manager_slug: str, headers: dict) -> list[dict]:
                     continue  # vente, pas achat
                 if user_buyer and user_buyer != manager_slug:
                     continue  # achat d'un autre
-                price_cents = ((node.get("bestBid") or {}).get("amounts") or {}).get("eurCents")
+                _amounts  = (node.get("bestBid") or {}).get("amounts") or {}
+                eur_cents = _amounts.get("eurCents")
+                usd_cents = _amounts.get("usdCents")
+                gbp_cents = _amounts.get("gbpCents")
                 for card in node.get("anyCards", []):
                     rows.append({
                         "card_slug":        card["slug"],
@@ -98,16 +106,22 @@ def fetch_trades(manager_slug: str, headers: dict) -> list[dict]:
                         "deal_id":          node["id"],
                         "deal_type":        "auction",
                         "transaction_date": node.get("transactionDate"),
-                        "price_eur_cents":  price_cents,
+                        "price_eur_cents":  eur_cents,
+                        "price_usd_cents":  usd_cents,
+                        "price_gbp_cents":  gbp_cents,
                     })
 
             elif typename == "TokenOffer":
                 sender_slug = (node.get("sender") or {}).get("slug", "")
                 if sender_slug == manager_slug:
+                    cards_skipped = [(c["slug"]) for c in (node.get("senderSide") or {}).get("anyCards", [])]
+                    if cards_skipped:
+                        print(f"    [SKIP vente] {node['id']} cards={cards_skipped}")
                     continue  # vente
-                price_cents = (
-                    ((node.get("receiverSide") or {}).get("amounts") or {}).get("eurCents")
-                )
+                _amounts  = (node.get("receiverSide") or {}).get("amounts") or {}
+                eur_cents = _amounts.get("eurCents")
+                usd_cents = _amounts.get("usdCents")
+                gbp_cents = _amounts.get("gbpCents")
                 for card in (node.get("senderSide") or {}).get("anyCards", []):
                     rows.append({
                         "card_slug":        card["slug"],
@@ -115,8 +129,13 @@ def fetch_trades(manager_slug: str, headers: dict) -> list[dict]:
                         "deal_id":          node["id"],
                         "deal_type":        "offer",
                         "transaction_date": node.get("transactionDate"),
-                        "price_eur_cents":  price_cents,
+                        "price_eur_cents":  eur_cents,
+                        "price_usd_cents":  usd_cents,
+                        "price_gbp_cents":  gbp_cents,
                     })
+
+            else:
+                print(f"    [UNKNOWN typename] {typename} id={node.get('id')}")
 
         if not page_info["hasNextPage"]:
             break
@@ -136,8 +155,18 @@ def store_trades(engine, rows: list[dict], manager_slug: str) -> None:
                 deal_type        TEXT,
                 transaction_date TIMESTAMPTZ,
                 price_eur_cents  INTEGER,
+                price_usd_cents  INTEGER,
+                price_gbp_cents  INTEGER,
                 PRIMARY KEY (card_slug, manager_slug)
             )
+        """))
+        conn.execute(text("""
+            ALTER TABLE mlb.card_purchase_prices
+            ADD COLUMN IF NOT EXISTS price_usd_cents INTEGER
+        """))
+        conn.execute(text("""
+            ALTER TABLE mlb.card_purchase_prices
+            ADD COLUMN IF NOT EXISTS price_gbp_cents INTEGER
         """))
 
     if not rows:
@@ -158,12 +187,13 @@ def store_trades(engine, rows: list[dict], manager_slug: str) -> None:
             {"slug": manager_slug},
         )
         for _, row in df.iterrows():
+            params = {k: (None if pd.isna(v) else v) for k, v in row.to_dict().items()}
             conn.execute(text("""
                 INSERT INTO mlb.card_purchase_prices
-                    (card_slug, manager_slug, deal_id, deal_type, transaction_date, price_eur_cents)
+                    (card_slug, manager_slug, deal_id, deal_type, transaction_date, price_eur_cents, price_usd_cents, price_gbp_cents)
                 VALUES
-                    (:card_slug, :manager_slug, :deal_id, :deal_type, :transaction_date, :price_eur_cents)
+                    (:card_slug, :manager_slug, :deal_id, :deal_type, :transaction_date, :price_eur_cents, :price_usd_cents, :price_gbp_cents)
                 ON CONFLICT DO NOTHING
-            """), row.to_dict())
+            """), params)
 
     print(f"  {len(df)} transactions dans mlb.card_purchase_prices")

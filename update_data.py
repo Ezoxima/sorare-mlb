@@ -199,6 +199,24 @@ def _gallery_stats_exists(engine) -> bool:
 
 # ── 1. Galerie ─────────────────────────────────────────────────────────────────
 
+def _extract_lowest_price(node: dict | None, prefix: str) -> dict:
+    """Extrait slug + prix (sale/primary) d'un nœud lowestPriceCard."""
+    node      = node or {}
+    sale_amt  = ((node.get("liveSingleSaleOffer") or {}).get("receiverSide") or {}).get("amounts") or {}
+    prim_price = (node.get("latestPrimaryOffer") or {}).get("price") or {}
+    return {
+        f"{prefix}_slug":             node.get("slug"),
+        f"{prefix}_sale_eur_cents":   sale_amt.get("eurCents"),
+        f"{prefix}_sale_gbp_cents":   sale_amt.get("gbpCents"),
+        f"{prefix}_sale_usd_cents":   sale_amt.get("usdCents"),
+        f"{prefix}_sale_wei":         sale_amt.get("wei"),
+        f"{prefix}_primary_eur_cents": prim_price.get("eurCents"),
+        f"{prefix}_primary_gbp_cents": prim_price.get("gbpCents"),
+        f"{prefix}_primary_usd_cents": prim_price.get("usdCents"),
+        f"{prefix}_primary_wei":       prim_price.get("wei"),
+    }
+
+
 def _get_gallery(slug: str, headers: dict) -> pd.DataFrame:
     from datetime import datetime
     has_next_page = True
@@ -216,6 +234,19 @@ def _get_gallery(slug: str, headers: dict) -> pd.DataFrame:
                   slug name pictureUrl rarityTyped displayRarity
                   grade xp xpNeededForCurrentGrade xpNeededForNextGrade
                   power inSeasonEligible sealed anyPositions
+                  ownerSince
+                  tokenOwner {{ transferType }}
+                  cardStats {{ so5LineupsCount so5RewardsCount }}
+                  lowestPriceCard {{
+                    slug
+                    liveSingleSaleOffer {{ receiverSide {{ amounts {{ eurCents gbpCents usdCents wei }} }} }}
+                    latestPrimaryOffer  {{ price          {{ eurCents gbpCents usdCents wei }} }}
+                  }}
+                  lowestPriceCardAnySeason {{
+                    slug
+                    liveSingleSaleOffer {{ receiverSide {{ amounts {{ eurCents gbpCents usdCents wei }} }} }}
+                    latestPrimaryOffer  {{ price          {{ eurCents gbpCents usdCents wei }} }}
+                  }}
                   baseballPlayer {{
                     slug displayName age
                     activeClub {{ slug }}
@@ -265,7 +296,8 @@ def _get_gallery(slug: str, headers: dict) -> pd.DataFrame:
                     home_away = "home" if club_slug == home_team_slug else \
                                 "away" if club_slug == away_team_slug else None
 
-            positions = card.get("anyPositions") or []
+            positions   = card.get("anyPositions") or []
+            _card_stats = card.get("cardStats") or {}
             cards_data.append({
                 "id_manager":                   slug,
                 "gallery_manager":              nickname,
@@ -295,6 +327,12 @@ def _get_gallery(slug: str, headers: dict) -> pd.DataFrame:
                 "sealed":                       card["sealed"],
                 "active_club_slug":             club_slug,
                 "home_away":                    home_away,
+                "owner_since":                  card.get("ownerSince"),
+                "transfer_type":                (card.get("tokenOwner") or {}).get("transferType"),
+                "so5_lineups_count":            _card_stats.get("so5LineupsCount"),
+                "so5_rewards_count":            _card_stats.get("so5RewardsCount"),
+                **_extract_lowest_price(card.get("lowestPriceCard"),          "lpc"),
+                **_extract_lowest_price(card.get("lowestPriceCardAnySeason"), "lpca"),
             })
 
         has_next_page = page_info["hasNextPage"]
@@ -635,10 +673,19 @@ def export_to_parquet(engine) -> None:
                    g.card_display_position_2,
                    g.card_power, g.card_grade, g.card_xp, g.card_xp_needed_next_grade,
                    g.in_season_eligible, g.active_club_slug,
+                   g.so5_lineups_count, g.so5_rewards_count, g.owner_since, g.transfer_type,
+                   g.lpc_sale_eur_cents,  g.lpc_sale_usd_cents,  g.lpc_sale_wei,
+                   g.lpc_primary_eur_cents,  g.lpc_primary_usd_cents,  g.lpc_primary_wei,
+                   g.lpca_sale_eur_cents, g.lpca_sale_usd_cents, g.lpca_sale_wei,
+                   g.lpca_primary_eur_cents, g.lpca_primary_usd_cents, g.lpca_primary_wei,
                    cp_is.price_eur  AS price_in_season,
                    cp_oos.price_eur AS price_out_season,
                    cp_is.sealable_for,
-                   p.next_gw_projected_score
+                   p.next_gw_projected_score,
+                   cpp.price_eur_cents AS purchase_eur_cents,
+                   cpp.price_usd_cents AS purchase_usd_cents,
+                   cpp.price_gbp_cents AS purchase_gbp_cents,
+                   cpp.deal_type       AS purchase_deal_type
             FROM mlb.gallery_players g
             LEFT JOIN mlb.card_prices cp_is
                 ON g.player_slug = cp_is.player_slug
@@ -647,6 +694,8 @@ def export_to_parquet(engine) -> None:
                 ON g.player_slug = cp_oos.player_slug
                AND LOWER(g.card_display_rarity) = cp_oos.rarity AND cp_oos.in_season = false
             LEFT JOIN mlb.players p ON g.player_slug = p.player_slug
+            LEFT JOIN mlb.card_purchase_prices cpp
+                ON g.card_slug = cpp.card_slug AND g.id_manager = cpp.manager_slug
             WHERE NOT g.sealed
             ORDER BY CASE LOWER(g.card_display_rarity)
                 WHEN 'unique' THEN 0 WHEN 'super_rare' THEN 1 WHEN 'rare' THEN 2 ELSE 3 END,

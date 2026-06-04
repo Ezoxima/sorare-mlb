@@ -113,6 +113,7 @@ html, body, [data-testid="stAppViewContainer"] {
   border-radius: 0 !important; font-family: var(--mono) !important; font-size: 11px !important; color: var(--fg-0) !important;
 }
 [data-baseweb="select"] svg { color: var(--fg-2) !important; }
+[data-baseweb="select"] [value] { font-family:var(--mono)!important; font-size:12px!important; }
 
 /* ── Inputs ── */
 [data-testid="stTextInput"] input, [data-testid="stNumberInput"] input {
@@ -409,32 +410,32 @@ a.sorare-link:hover { border-bottom-color: var(--accent); color: var(--accent); 
   text-transform:uppercase!important; color:var(--fg-3)!important;
 }
 /* ── Vertical separator (between filter groups) ── */
-.vsep { width:1px; height:52px; background:var(--line); margin:26px auto 0; }
-/* ── st.pills — état par défaut ── */
-[data-testid="stPills"] button {
-  border:1px solid var(--line-2)!important; background:var(--bg-2)!important;
-  color:var(--fg-2)!important; border-radius:7px!important;
-  font-family:var(--mono)!important; font-size:12px!important; font-weight:500!important;
-  text-transform:none!important;
-  padding:7px 12px!important; min-height:0!important; transition:all .13s!important;
+.vsep-wrap { display:flex; align-items:center; justify-content:center; height:100%; min-height:70px; }
+.vsep { width:1px; height:52px; background:var(--line); }
+/* ── st.pills ── */
+[data-testid^="stBaseButton-pills"] {
+  font-family:var(--mono)!important; border:1px solid var(--line-2)!important;
+  background:var(--bg-2)!important; color:var(--fg-1)!important;
+  border-radius:7px!important; padding:16px 16px!important;
+  min-height:0!important; transition:all .13s!important; font-size:12px!important;
 }
-[data-testid="stPills"] button:hover { border-color:var(--fg-3)!important; color:var(--fg-1)!important; }
-/* ── st.pills — sélectionné (vert) ── */
-[data-testid="stPills"] button[aria-checked="true"],
-[data-testid="stPills"] button[kind="pillsActive"],
-[data-testid="stPills"] [data-testid="stBaseButton-pillsActive"] {
+[data-testid^="stBaseButton-pills"] [data-testid="stMarkdownContainer"] p {
+  font-family:var(--mono)!important; font-size:12px!important;
+}
+[data-testid^="stBaseButton-pills"]:hover { border-color:var(--fg-3)!important; color:var(--fg-1)!important; }
+[data-testid="stBaseButton-pillsActive"] {
   border-color:rgba(47,217,142,.50)!important;
   color:var(--pos)!important; background:rgba(47,217,142,.13)!important;
 }
-/* ── labels groupes (CATÉGORIE, STATISTIQUE…) — même style que .filt-head .r ── */
-[data-testid="stPills"] label p,
-[data-testid="stPills"] label,
-div[data-testid="stWidgetLabel"] p,
-div[data-testid="stWidgetLabel"] label,
-div[data-testid="stWidgetLabel"] span {
-  font-family:var(--mono)!important; font-size:10px!important; font-weight:400!important;
-  letter-spacing:.1em!important; text-transform:uppercase!important;
-  color:var(--fg-3)!important; margin-bottom:8px!important;
+/* ── widget labels (st.pills, st.selectbox, etc.) ── */
+[data-testid="stWidgetLabel"] p { font-family:var(--mono); font-size:12px; font-weight:400;
+  letter-spacing:.1em; text-transform:uppercase;
+  color:var(--fg-3); margin:0 0 6px 0; line-height:1; display:block;}
+/* ── labels groupes custom (.filt-lbl) ── */
+.filt-lbl {
+  font-family:var(--mono); font-size:12px; font-weight:400;
+  letter-spacing:.1em; text-transform:uppercase;
+  color:var(--fg-3); margin:0 0 6px 0; line-height:1; display:block;
 }
 /* ── selectbox — border-radius 7px (override global 0) ── */
 div[data-baseweb="select"] > div {
@@ -623,12 +624,14 @@ with st.container(border=True):
         [1.5, 0.08, 3.0, 0.08, 1.3, 0.08, 1.8, 0.08, 1.9]
     )
     for _sp in (s1, s2, s3, s4):
-        _sp.markdown('<div class="vsep"></div>', unsafe_allow_html=True)
+        _sp.markdown('<div class="vsep-wrap"><div class="vsep"></div></div>', unsafe_allow_html=True)
 
+    cat_c.markdown('<span class="filt-lbl">CATÉGORIE</span>', unsafe_allow_html=True)
     _cat = cat_c.pills(
-        "Catégorie", ["HITTING", "PITCHING"],
-        format_func=lambda x: ("● " if x == "HITTING" else "⚡ ") + x,
+        "", ["HITTING", "PITCHING"],
+        format_func=lambda x: ("⚾ " if x == "HITTING" else "⚡ ") + x,
         default="HITTING", key="filter_cat",
+        label_visibility="collapsed",
     )
     categorie = _cat or "HITTING"
 
@@ -639,27 +642,32 @@ with st.container(border=True):
     stat_labels_list  = stats_dispo["stat_short_name"].tolist()
     stat_keys_list    = stats_dispo["stat"].tolist()
     stat_display_list = [_STAT_DISPLAY.get(s, s) for s in stat_labels_list]
-    _sel_display     = stat_c.selectbox("Statistique", stat_display_list, key="filter_stat")
+    stat_c.markdown('<span class="filt-lbl">STATISTIQUE</span>', unsafe_allow_html=True)
+    _sel_display     = stat_c.selectbox("", stat_display_list, key="filter_stat", label_visibility="collapsed")
     _sel_idx         = stat_display_list.index(_sel_display)
     sel_stat_label   = stat_labels_list[_sel_idx]
     sel_stat         = stat_keys_list[_sel_idx]
     sel_stat_display = _sel_display
 
+    fen_c.markdown('<span class="filt-lbl">FENÊTRE</span>', unsafe_allow_html=True)
     fenetre = fen_c.pills(
-        "Fenêtre", list(FENETRE_OPTIONS.keys()),
+        "", list(FENETRE_OPTIONS.keys()),
         format_func=lambda x: x.split()[0],
         default="10 matchs", key="filter_fen",
+        label_visibility="collapsed",
     ) or "10 matchs"
 
+    day_c.markdown('<span class="filt-lbl">JOUR DE MATCH</span>', unsafe_allow_html=True)
     _sel_day_label = day_c.selectbox(
-        "Jour de match", _day_labels, index=_default_idx, key="sel_day"
+        "", _day_labels, index=_default_idx, key="sel_day", label_visibility="collapsed"
     )
 
     with obj_c:
         _oi, _or, _oh = st.columns([3, 1, 1])
+        _oi.markdown('<span class="filt-lbl">OBJECTIF / MATCH</span>', unsafe_allow_html=True)
         target = int(_oi.number_input(
-            "Objectif / match", min_value=0, value=0, step=1, format="%d",
-            key="filter_target",
+            "", min_value=0, value=0, step=1, format="%d",
+            key="filter_target", label_visibility="collapsed",
         ))
         _or.markdown('<div style="padding-top:28px"></div>', unsafe_allow_html=True)
         if _or.button("↺", key="target_reset", help="Réinitialiser à 0"):
