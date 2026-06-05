@@ -200,7 +200,7 @@ def render(ctx: dict) -> None:
     st.divider()
 
     # ── Filtres ────────────────────────────────────────────────────────────────
-    col_f1, col_f2, col_f3, col_f4 = st.columns([2, 2, 2, 1])
+    col_f1, col_f2, col_f3 = st.columns([2, 2, 2])
     with col_f1:
         raretés_filtre = sorted(df_p["card_display_rarity"].dropna().unique(),
                                 key=lambda r: RARITY_ORDER.get(r.lower() if r else "", 99))
@@ -219,16 +219,22 @@ def render(ctx: dict) -> None:
         }
         tri_label = st.selectbox("Trier par", list(tri_options.keys()), key="sort_prices")
         tri_col, tri_asc = tri_options[tri_label]
-    with col_f4:
-        remise_pct = st.number_input(
-            "Remise (%)", min_value=0, max_value=100, value=0, step=5,
-            key="remise_pct", help="% remise crédits marketplace sur le prix d'achat",
-        )
+
+    # Remise par carte — persistée en session state (card_slug → pct)
+    _remise_ss = f"remise_{sel_manager}"
+    if _remise_ss not in st.session_state:
+        st.session_state[_remise_ss] = {}
 
     df_p_f = df_p[
         df_p["card_display_rarity"].isin(sel_rar_p) &
         df_p["position_agg"].isin(sel_pos_p)
     ].sort_values(tri_col, ascending=tri_asc, na_position="last").reset_index(drop=True)
+
+    # Remise par carte depuis session state (clé = card_name, unique grâce au numéro de série)
+    _remise_map = st.session_state[_remise_ss]
+    df_p_f["remise_pct"] = df_p_f["card_name"].map(
+        lambda s: _remise_map.get(s, 0)
+    ).fillna(0).astype(int)
 
     # ── Valeurs d'affichage (après tri) ───────────────────────────────────────
     def _fmt_market(row):
@@ -241,21 +247,34 @@ def render(ctx: dict) -> None:
         return amount
 
     df_p_f["market_price"] = df_p_f.apply(_fmt_market, axis=1)
-    df_p_f["purchase_price"] = df_p_f["_purchase_sort"].apply(
-        lambda v: (v * rate * (1 - remise_pct / 100)) if pd.notna(v) else None
-    )
 
-    # Δ montant : calcul sur les clés numériques EUR, converti en devise d'affichage
-    purchase_num = df_p_f["_purchase_sort"] * (1 - remise_pct / 100)
-    df_p_f["diff_amount"] = (df_p_f["_market_sort"] - purchase_num) * rate
+    # Prix d'achat et Δ avec remise par carte
+    def _purchase_display(row):
+        v = row["_purchase_sort"]
+        if pd.isna(v):
+            return None
+        return v * rate * (1 - row["remise_pct"] / 100)
 
-    # Δ % uniquement pour les cartes achetées
+    def _diff_amount(row):
+        m = row["_market_sort"]
+        p = row["_purchase_sort"]
+        if pd.isna(m) or pd.isna(p):
+            return None
+        return (m - p * (1 - row["remise_pct"] / 100)) * rate
+
     def _diff_pct(row):
-        p = row["_purchase_sort"] * (1 - remise_pct / 100) if pd.notna(row["_purchase_sort"]) else None
-        if row.get("origine") == "🛒 Achetée" and p and pd.notna(row["_market_sort"]):
-            return (row["_market_sort"] - p) / p * 100
-        return None
-    df_p_f["diff_pct"] = df_p_f.apply(_diff_pct, axis=1)
+        p = row["_purchase_sort"]
+        if row.get("origine") != "🛒 Achetée" or pd.isna(p) or p == 0:
+            return None
+        m = row["_market_sort"]
+        if pd.isna(m):
+            return None
+        p_adj = p * (1 - row["remise_pct"] / 100)
+        return (m - p_adj) / p_adj * 100 if p_adj else None
+
+    df_p_f["purchase_price"] = df_p_f.apply(_purchase_display, axis=1)
+    df_p_f["diff_amount"]    = df_p_f.apply(_diff_amount, axis=1)
+    df_p_f["diff_pct"]       = df_p_f.apply(_diff_pct, axis=1)
 
     # ── XP % ──────────────────────────────────────────────────────────────────
     _xp_next = df_p_f["card_xp_needed_next_grade"].replace(0, None)
@@ -271,7 +290,7 @@ def render(ctx: dict) -> None:
     base_cols = [
         "picture_url", "card_name", "position_agg", "card_display_rarity",
         "card_power", "card_grade", "xp_pct",
-        "purchase_price", "market_price", "diff_amount", "diff_pct",
+        "remise_pct", "purchase_price", "market_price", "diff_amount", "diff_pct",
         "in_season_eligible", "owner_since", "origine",
     ]
     rename_map = {
@@ -282,6 +301,7 @@ def render(ctx: dict) -> None:
         "card_power":          "Power",
         "card_grade":          "Grade",
         "xp_pct":              "XP",
+        "remise_pct":          "Remise %",
         "purchase_price":      price_label_achat,
         "market_price":        price_label_marche,
         "diff_amount":         diff_label_amt,
@@ -295,6 +315,9 @@ def render(ctx: dict) -> None:
         "Grade":               st.column_config.NumberColumn(format="%d"),
         "XP":                  st.column_config.ProgressColumn(min_value=0, max_value=100, format="%.0f%%"),
         "Power":               st.column_config.NumberColumn(format="%.2f"),
+        "Remise %":            st.column_config.NumberColumn(
+                                   min_value=0, max_value=100, step=5, format="%d %%",
+                                   help="% remise crédits marketplace sur le prix d'achat"),
         price_label_achat:     st.column_config.NumberColumn(format=price_fmt),
         price_label_marche:    st.column_config.TextColumn(),
         diff_label_amt:        st.column_config.NumberColumn(format=diff_fmt),
@@ -313,10 +336,23 @@ def render(ctx: dict) -> None:
     existing_cols = [c for c in base_cols if c in df_p_f.columns]
     table_p = df_p_f[existing_cols].rename(columns=rename_map)
 
-    st.dataframe(
+    # Toutes les colonnes sont disabled sauf "Remise %"
+    disabled_cols = [c for c in table_p.columns if c != "Remise %"]
+
+    edited = st.data_editor(
         table_p,
         use_container_width=True,
         hide_index=True,
         column_config=col_config,
+        disabled=disabled_cols,
+        key=f"tab2_editor_{sel_manager}",
     )
+
+    # Persistance des remises éditées en session state (card_name comme clé)
+    if edited is not None and "Remise %" in edited.columns and "Carte" in edited.columns:
+        for _, row in edited.iterrows():
+            name = row["Carte"]
+            if name:
+                st.session_state[_remise_ss][name] = int(row["Remise %"])
+
     st.caption(f"{len(df_p_f)} cartes affichées")

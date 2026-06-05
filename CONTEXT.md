@@ -120,6 +120,34 @@ Do not suggest re-introducing a global ML model unless the user asks.
 - Challenger: no IS constraint
 - Lineup suggestion algorithm maximises `proj_score_eff`, then forces IS constraint if needed
 
+## Tab 2 — Mes cartes
+
+Displays the user's gallery with purchase price, market price, and performance stats.
+
+### Market price logic (`tabs/tab2_cartes.py`)
+- **IS cards**: `min(lpc_sale, lpc_primary/2)` — primary offer price is halved (Sorare 50% marketplace credit).
+  When primary is used, the cell shows "(crédits marché)" as a hover tooltip.
+- **non-IS cards**: `min(lpc_sale, lpc_primary, lpca_sale, lpca_primary)` — all four columns compared.
+- Price fallback order per column: EUR → USD → wei (ETH). Live FX rates from frankfurter.app + CoinGecko.
+- Columns sourced from `gallery_players.lpc_*/lpca_*` (populated by `lowestPriceCard` / `lowestPriceCardAnySeason` in the gallery API).
+
+### Purchase price
+- Sourced from `mlb.card_purchase_prices` via `fetch_card_trades.py` (paginating `user.trades`).
+- Handles `TokenPrimaryOffer`, `TokenAuction`, `TokenOffer` (marketplace fixed-price purchases).
+- Columns: `price_eur_cents`, `price_usd_cents`, `price_gbp_cents`.
+- **Marketplace credit discount**: not available via API (confirmed with Sorare support). Applied manually via per-card `Remise %` editable column in Tab 2 (persisted in session state only — file persistence pending).
+
+### Gallery API fields added (2026-06-04)
+- `ownerSince` → `owner_since`
+- `tokenOwner.transferType` → `transfer_type` (values: `REWARD`, `SHARDS`, `SINGLE_SALE_OFFER`, `TokenAuction`, …)
+- `cardStats.so5LineupsCount` → `so5_lineups_count`
+- `cardStats.so5RewardsCount` → `so5_rewards_count`
+- `lowestPriceCard` / `lowestPriceCardAnySeason` → `lpc_*/lpca_*` with EUR, USD, GBP, wei
+
+### Pending (remise persistence)
+Per-card `Remise %` is currently stored in `st.session_state` only — lost on browser reload.
+Next: persist to a JSON/parquet file in `data/` so the values survive across sessions.
+
 ## Non-obvious constraints
 
 - `card_power` comes from PostgreSQL as `Decimal` — always cast before arithmetic
@@ -127,6 +155,7 @@ Do not suggest re-introducing a global ML model unless the user asks.
 - `probable_pitcher` can be NULL for historical games — fall back to `winning_pitcher` / `losing_pitcher`
 - Sorare's marketplace credit discount cannot be retrieved via API (confirmed with Sorare support)
 - `ml_predictions.parquet` stores `pred_*` values per game, not per GW — the app scales by N
+- `transfer_type = SINGLE_SALE_OFFER` in `gallery_players` maps to `TokenOffer` in the trades API (not a separate GraphQL type)
 - Arena "Libre" slot accepts only hitter positions (CI/MI/OF), not pitchers
 - **Arena competitions do NOT apply card_power (XP bonus)** — `proj_score_eff` in Arena equals `proj_score` (no multiplication). This is intentional per Sorare Arena rules. Only Compétitions (Champions/Hot Streak/Challenger) use card_power.
 
