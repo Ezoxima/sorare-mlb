@@ -1,8 +1,25 @@
+import json
 import streamlit as st
 import pandas as pd
 import requests
+from pathlib import Path
 
 from data_loaders import RARITY_ORDER
+
+_REMISES_PATH = Path(__file__).parent.parent / "data" / "remises.json"
+
+
+def load_remises() -> dict:
+    try:
+        return json.loads(_REMISES_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def save_remises(remises: dict) -> None:
+    _REMISES_PATH.write_text(
+        json.dumps(remises, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 @st.cache_data(ttl=3600)
@@ -220,10 +237,9 @@ def render(ctx: dict) -> None:
         tri_label = st.selectbox("Trier par", list(tri_options.keys()), key="sort_prices")
         tri_col, tri_asc = tri_options[tri_label]
 
-    # Remise par carte — persistée en session state (card_slug → pct)
-    _remise_ss = f"remise_{sel_manager}"
-    if _remise_ss not in st.session_state:
-        st.session_state[_remise_ss] = {}
+    # Remise par carte — chargée depuis fichier une seule fois par session
+    if "remises" not in st.session_state:
+        st.session_state["remises"] = load_remises()
 
     df_p_f = df_p[
         df_p["card_display_rarity"].isin(sel_rar_p) &
@@ -231,7 +247,7 @@ def render(ctx: dict) -> None:
     ].sort_values(tri_col, ascending=tri_asc, na_position="last").reset_index(drop=True)
 
     # Remise par carte depuis session state (clé = card_name, unique grâce au numéro de série)
-    _remise_map = st.session_state[_remise_ss]
+    _remise_map = st.session_state["remises"]
     df_p_f["remise_pct"] = df_p_f["card_name"].map(
         lambda s: _remise_map.get(s, 0)
     ).fillna(0).astype(int)
@@ -348,11 +364,17 @@ def render(ctx: dict) -> None:
         key=f"tab2_editor_{sel_manager}",
     )
 
-    # Persistance des remises éditées en session state (card_name comme clé)
+    # Persistance des remises éditées → session state + fichier JSON
     if edited is not None and "Remise %" in edited.columns and "Carte" in edited.columns:
+        changed = False
         for _, row in edited.iterrows():
             name = row["Carte"]
             if name:
-                st.session_state[_remise_ss][name] = int(row["Remise %"])
+                new_val = int(row["Remise %"])
+                if st.session_state["remises"].get(name) != new_val:
+                    st.session_state["remises"][name] = new_val
+                    changed = True
+        if changed:
+            save_remises(st.session_state["remises"])
 
     st.caption(f"{len(df_p_f)} cartes affichées")
