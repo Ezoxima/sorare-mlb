@@ -5,6 +5,7 @@ import streamlit as st
 
 from data_loaders import (
     load_saved_lineups, _delete_lineup, _LINEUPS_FILE, load_game_scores_all,
+    load_last5_scores, gen_bar_sparkline_svg,
 )
 
 
@@ -85,7 +86,16 @@ def render(ctx: dict) -> None:
                 .to_dict()
             )
 
-            def _card10(pdata, real_sc, border_color="#334155"):
+            _all_slugs_10 = tuple({
+                sd.get("player_slug", "")
+                for l in _lineups10
+                for _sdg in [l.get("slots", {}), l.get("suggested_slots_auto") or {}, l.get("suggested_slots_sorare") or {}]
+                for sd in _sdg.values()
+                if sd and sd.get("player_slug")
+            })
+            _last5_10 = load_last5_scores(_all_slugs_10) if _all_slugs_10 else {}
+
+            def _card10(pdata, real_sc, border_color="#334155", scores=None):
                 _BG = "#1e293b"
                 if not pdata:
                     return (
@@ -104,10 +114,17 @@ def render(ctx: dict) -> None:
                 _parts = _name.split()
                 _short = _name if len(_name) <= 13 else (f"{_parts[0][0]}. {_parts[-1]}" if len(_parts) > 1 else _name[:13])
                 _img   = (
-                    f'<img src="{_pic}" style="width:200px;height:auto;border-radius:8px;margin-bottom:8px;display:block;margin-left:auto;margin-right:auto">'
+                    f'<img src="{_pic}" style="width:200px;height:auto;border-radius:8px;display:block;margin-left:auto;margin-right:auto">'
                     if _pic else
-                    f'<div style="width:200px;height:267px;background:#334155;border-radius:8px;margin:0 auto 8px"></div>'
+                    f'<div style="width:200px;height:267px;background:#334155;border-radius:8px;margin:0 auto"></div>'
                 )
+                _hist_html = ""
+                if scores:
+                    _hist_html = (
+                        f'<div style="display:flex;justify-content:center;margin:6px 0 2px">'
+                        + gen_bar_sparkline_svg(scores, w=100, h=20, score_colors=True)
+                        + f'</div>'
+                    )
                 _pred_str = f"{_pred:.1f}" if _pred is not None else "—"
                 _real_str = f"{_real:.1f}" if _real is not None else "—"
                 _diff_str = f"{_diff:+.1f}" if _diff is not None else "—"
@@ -116,6 +133,7 @@ def render(ctx: dict) -> None:
                     f'<div style="background:{_BG};border:2px solid {border_color};border-radius:12px;'
                     f'padding:12px 8px;text-align:center">'
                     f'{_img}'
+                    f'{_hist_html}'
                     f'<div style="display:flex;justify-content:center;gap:16px;margin-top:6px">'
                     f'  <div><div style="font-size:10px;color:#64748b">Prédit</div>'
                     f'       <div style="font-size:16px;color:#94a3b8;font-weight:600">{_pred_str}</div></div>'
@@ -217,7 +235,7 @@ def render(ctx: dict) -> None:
                         _rl10 = _gs_gw10.get(_pd10.get("player_slug", "")) if _pd10 else None
                         _sug_card10 = (_sug_auto10.get(_sk) or {}).get("card_name") if _sug_auto10 else None
                         _border10 = "#334155" if (not _sug_card10 or not _pd10 or _pd10.get("card_name") == _sug_card10) else "#f59e0b"
-                        _row_a[_ci + 1].markdown(_card10(_pd10, _rl10, _border10), unsafe_allow_html=True)
+                        _row_a[_ci + 1].markdown(_card10(_pd10, _rl10, _border10, scores=_last5_10.get((_pd10 or {}).get("player_slug", ""), [])), unsafe_allow_html=True)
 
                     _row_b = st.columns(_col_ratios10)
                     _row_b[0].markdown(_row_label("ML", "#60a5fa", _proj_ml), unsafe_allow_html=True)
@@ -228,7 +246,7 @@ def render(ctx: dict) -> None:
                             _rl10 = _gs_gw10.get(_pd10.get("player_slug", "")) if _pd10 else None
                             _play_card10 = (_l10["slots"].get(_sk) or {}).get("card_name")
                             _border10 = "#334155" if (not _pd10 or _pd10.get("card_name") == _play_card10) else "#60a5fa"
-                            _row_b[_ci + 1].markdown(_card10(_pd10, _rl10, _border10), unsafe_allow_html=True)
+                            _row_b[_ci + 1].markdown(_card10(_pd10, _rl10, _border10, scores=_last5_10.get((_pd10 or {}).get("player_slug", ""), [])), unsafe_allow_html=True)
                             if _pd10 and _rl10 is not None and _play_card10 and _pd10.get("card_name") != _play_card10:
                                 _tot_ml_real += _rl10
                                 _n_cmp_ml += 1
@@ -250,7 +268,7 @@ def render(ctx: dict) -> None:
                             _rl10 = _gs_gw10.get(_pd10.get("player_slug", "")) if _pd10 else None
                             _play_card10 = (_l10["slots"].get(_sk) or {}).get("card_name")
                             _border10 = "#334155" if (not _pd10 or _pd10.get("card_name") == _play_card10) else "#a78bfa"
-                            _row_c[_ci + 1].markdown(_card10(_pd10, _rl10, _border10), unsafe_allow_html=True)
+                            _row_c[_ci + 1].markdown(_card10(_pd10, _rl10, _border10, scores=_last5_10.get((_pd10 or {}).get("player_slug", ""), [])), unsafe_allow_html=True)
                             if _pd10 and _rl10 is not None and _play_card10 and _pd10.get("card_name") != _play_card10:
                                 _tot_gw_real += _rl10
                                 _n_cmp_gw += 1

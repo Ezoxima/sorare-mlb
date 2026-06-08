@@ -4,7 +4,8 @@ import pandas as pd
 
 from data_loaders import (
     load_upcoming_pitchers, load_matchup_stats, load_player_avg_scores,
-    load_pitcher_stats_vv, FENETRE_OPTIONS, POSITION_AGG, POSITION_EXACT,
+    load_pitcher_stats_vv, load_sorare_projections,
+    FENETRE_OPTIONS, POSITION_AGG, POSITION_EXACT,
 )
 
 
@@ -84,13 +85,7 @@ def render(ctx: dict) -> None:
 
         max_games7 = max((len(v) for v in team_sched7.values()), default=0)
 
-        _sorare_proj7: dict = (
-            df_prices[df_prices["gallery_manager"] == sel_manager]
-            .drop_duplicates("player_slug")
-            .set_index("player_slug")["next_gw_projected_score"]
-            .dropna()
-            .to_dict()
-        )
+        _sorare_proj7: dict = load_sorare_projections()
 
         _ml7: dict = {}
         if not df_ml.empty:
@@ -222,6 +217,7 @@ def render(ctx: dict) -> None:
                     "category":           "SP" if _isp7 else "Hitter",
                     "nb_games":           _ng7,
                     "projected_score":    None,
+                    "sorare_proj":        _sorare_proj7.get(_s7),
                     "ml_pred":            _mm7,
                     "ctx_pred":           _ctx7_tot,
                     "bat_hand":           _mr7.get("bat_hand") if not _isp7 else None,

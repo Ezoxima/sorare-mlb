@@ -762,7 +762,8 @@ def export_to_parquet(engine) -> None:
         print("  games.parquet")
 
         _df(conn, """
-            SELECT player_slug, display_name, team_slug, position_1, agg_position_1
+            SELECT player_slug, display_name, team_slug, position_1, agg_position_1,
+                   next_gw_projected_score
             FROM mlb.players
         """).to_parquet(data_dir / "players.parquet", index=False)
         print("  players.parquet")

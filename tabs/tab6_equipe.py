@@ -7,7 +7,7 @@ import pandas as pd
 
 from data_loaders import (
     load_player_avg_scores, load_upcoming_pitchers, load_matchup_stats,
-    load_saved_lineups, _persist_lineup,
+    load_saved_lineups, _persist_lineup, load_last5_scores, gen_bar_sparkline_svg,
     POSITION_AGG, POSITION_EXACT, RARITY_COLOR, FENETRE_OPTIONS,
 )
 
@@ -199,6 +199,7 @@ def render(ctx: dict) -> None:
         )
 
         _cl = df_tb.set_index("card_name").to_dict("index")
+        _last5_tb = load_last5_scores(tuple(df_tb["player_slug"].unique()))
 
         def _fmt_opt(x: str) -> str:
             if x == "—":
@@ -449,14 +450,21 @@ def render(ctx: dict) -> None:
                 _img_cols = st.columns(7)
                 for (_sn, _), _icol in zip(_SLOT_POS.items(), _img_cols):
                     _cn = tb_teams[_ti].get(_sn)
-                    _img_url = _cl.get(_cn or "", {}).get("picture_url")
+                    _img_url  = _cl.get(_cn or "", {}).get("picture_url")
+                    _pslug_i  = _cl.get(_cn or "", {}).get("player_slug", "")
+                    _hist5    = _last5_tb.get(_pslug_i, [])
                     with _icol:
                         if _img_url:
-                            st.image(_img_url, caption=_sn, use_container_width=True)
-                        else:
-                            _rarity_c = RARITY_COLOR.get(
-                                (_cl.get(_cn or "", {}).get("card_display_rarity") or "").lower(), "#555"
+                            _hsvg = gen_bar_sparkline_svg(_hist5, w=52, h=16, score_colors=True) if _hist5 else ""
+                            st.markdown(
+                                f'<div style="text-align:center">'
+                                f'<img src="{_img_url}" style="width:100%;border-radius:6px;display:block">'
+                                f'<div style="display:flex;justify-content:center;margin:3px 0 1px">{_hsvg}</div>'
+                                f'<div style="font-size:10px;color:#64748b">{_sn}</div>'
+                                f'</div>',
+                                unsafe_allow_html=True,
                             )
+                        else:
                             st.markdown(
                                 f'<div style="height:90px;border:1px dashed rgba(128,128,128,0.3);'
                                 f'border-radius:8px;display:flex;align-items:center;'
@@ -662,7 +670,8 @@ def render(ctx: dict) -> None:
             else _df_ar9["proj_score_auto"].fillna(0.0)
         )
         _df_ar9["proj_score_eff"] = _ar9_base.round(1)  # Arena : pas de bonus XP (règle Sorare)
-        _cl_ar9 = _df_ar9.set_index("card_name").to_dict("index")
+        _cl_ar9    = _df_ar9.set_index("card_name").to_dict("index")
+        _last5_ar9 = load_last5_scores(tuple(_df_ar9["player_slug"].unique()))
 
         def _fmt_opt_ar9(x: str) -> str:
             if x == "—":
@@ -819,11 +828,21 @@ def render(ctx: dict) -> None:
 
             _img9_cols = st.columns(_ar9_n)
             for (_sna9, _), _icl9 in zip(_ar9_sl.items(), _img9_cols):
-                _cn9  = _ar9_team.get(_sna9)
-                _img9 = _cl_ar9.get(_cn9 or "", {}).get("picture_url")
+                _cn9    = _ar9_team.get(_sna9)
+                _img9   = _cl_ar9.get(_cn9 or "", {}).get("picture_url")
+                _pslug9 = _cl_ar9.get(_cn9 or "", {}).get("player_slug", "")
+                _hist9  = _last5_ar9.get(_pslug9, [])
                 with _icl9:
                     if _img9:
-                        st.image(_img9, caption=_sna9, use_container_width=True)
+                        _hsvg9 = gen_bar_sparkline_svg(_hist9, w=52, h=16, score_colors=True) if _hist9 else ""
+                        st.markdown(
+                            f'<div style="text-align:center">'
+                            f'<img src="{_img9}" style="width:100%;border-radius:6px;display:block">'
+                            f'<div style="display:flex;justify-content:center;margin:3px 0 1px">{_hsvg9}</div>'
+                            f'<div style="font-size:10px;color:#64748b">{_sna9}</div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
                     else:
                         st.markdown(
                             f'<div style="height:90px;border:1px dashed rgba(128,128,128,0.3);'

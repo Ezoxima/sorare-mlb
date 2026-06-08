@@ -504,6 +504,42 @@ def load_matchup_stats(hitter_slugs: tuple, pitcher_slugs: tuple) -> pd.DataFram
 
 
 @st.cache_data(ttl=3600)
+def load_sorare_projections() -> dict:
+    """Retourne {player_slug: next_gw_projected_score} pour tous les joueurs MLB."""
+    p = _DATA_DIR / "players.parquet"
+    if not p.exists():
+        return {}
+    df = pd.read_parquet(p)
+    if "next_gw_projected_score" not in df.columns:
+        return {}
+    df["next_gw_projected_score"] = pd.to_numeric(df["next_gw_projected_score"], errors="coerce")
+    return df.dropna(subset=["next_gw_projected_score"]).set_index("player_slug")["next_gw_projected_score"].to_dict()
+
+
+@st.cache_data(ttl=3600)
+def load_last5_scores(slugs: tuple) -> dict:
+    """Retourne {player_slug: [score|None, ...]} — 5 derniers matchs (joués ou DNP), ordre chrono.
+    None indique un match non joué (DNP)."""
+    if not slugs:
+        return {}
+    gs = pd.read_parquet(_DATA_DIR / "game_scores.parquet")
+    gs = gs[gs["player_slug"].isin(slugs)].copy()
+    if gs.empty:
+        return {}
+    gs["game_date"] = pd.to_datetime(gs["game_date"], utc=True, errors="coerce")
+    gs["score"] = pd.to_numeric(gs["score"], errors="coerce").fillna(0)
+    gs["rk"] = gs.groupby("player_slug")["game_date"].rank(ascending=False, method="first").astype(int)
+    gs = gs[gs["rk"] <= 5].sort_values(["player_slug", "game_date"])
+    result = {}
+    for slug, grp in gs.groupby("player_slug"):
+        result[slug] = [
+            round(float(row["score"]), 1) if row["played_in_game"] else None
+            for _, row in grp.iterrows()
+        ]
+    return result
+
+
+@st.cache_data(ttl=3600)
 def load_player_avg_scores(slugs: tuple, fenetre: int = 10) -> pd.DataFrame:
     if not slugs:
         return pd.DataFrame(columns=["player_slug", "avg_score", "nb_matchs"])
@@ -964,21 +1000,41 @@ def compact_multiselect(label: str, options: list, key: str) -> list:
 
 # ── Composants UI ──────────────────────────────────────────────────────────────
 
-def gen_bar_sparkline_svg(values, w=88, h=20, target=0.0) -> str:
+def _score_bar_color(v: float) -> str:
+    if v <= 2:  return "rgb(255,90,90)"
+    if v <= 7:  return "rgb(255,126,52)"
+    if v <= 11: return "rgb(240,206,29)"
+    if v <= 15: return "rgb(182,255,26)"
+    if v <= 30: return "rgb(37,237,54)"
+    if v <= 45: return "rgb(0,243,235)"
+    return "rgb(223,227,244)"
+
+
+def gen_bar_sparkline_svg(values, w=88, h=20, target=0.0, score_colors=False) -> str:
     if not values:
         return f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}"></svg>'
     n = len(values)
-    effective_max = max(max(values), target) if target > 0 else max(values)
+    played = [v for v in values if v is not None]
+    raw_max = max(played) if played else 0
+    effective_max = max(raw_max, target) if target > 0 else raw_max
     mx = effective_max if effective_max > 0 else 1
     bar_w = max(3, (w - n + 1) // n)
+    dnp_h = max(2, h // 4)
     bars = ""
     for i, v in enumerate(values):
-        bh = max(2, round((max(0, v) / mx) * (h - 2)))
-        x  = i * (bar_w + 1)
-        y  = h - bh
+        x     = i * (bar_w + 1)
         alpha = round(0.35 + 0.65 * (i / max(1, n - 1)), 2)
-        color = "var(--accent)" if (target <= 0 or v >= target) else "#ef4444"
-        bars += f'<rect x="{x}" y="{y}" width="{bar_w}" height="{bh}" fill="{color}" opacity="{alpha}" rx="1"/>'
+        if v is None:
+            y = h - dnp_h
+            bars += f'<rect x="{x}" y="{y}" width="{bar_w}" height="{dnp_h}" fill="rgb(100,116,139)" opacity="{alpha}" rx="1"/>'
+        else:
+            bh = max(2, round((max(0, v) / mx) * (h - 2)))
+            y  = h - bh
+            if score_colors:
+                color = _score_bar_color(v)
+            else:
+                color = "var(--accent)" if (target <= 0 or v >= target) else "#ef4444"
+            bars += f'<rect x="{x}" y="{y}" width="{bar_w}" height="{bh}" fill="{color}" opacity="{alpha}" rx="1"/>'
     target_line = ""
     if target > 0:
         ty = max(1, min(h - 1, round(h - (target / mx) * (h - 2))))
