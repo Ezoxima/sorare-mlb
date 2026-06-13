@@ -858,13 +858,19 @@ if __name__ == "__main__":
         help="Démarre à partir de l'étape N (1-11)")
     _parser.add_argument("--only", dest="only_step", type=int, default=None, metavar="N",
         help="Exécute uniquement l'étape N")
+    _parser.add_argument("--steps", dest="steps", type=str, default=None, metavar="N[,N...]",
+        help="Exécute uniquement les étapes listées, ex: 2,3,5,7,11")
     _args = _parser.parse_args()
 
-    _s = _args.only_step or _args.from_step
-    _e = _args.only_step or 12
-
-    def _run(n: int) -> bool:
-        return _s <= n <= _e
+    if _args.steps:
+        _step_set = {int(s.strip()) for s in _args.steps.split(",")}
+        def _run(n: int) -> bool:
+            return n in _step_set
+    else:
+        _s = _args.only_step or _args.from_step
+        _e = _args.only_step or 12
+        def _run(n: int) -> bool:
+            return _s <= n <= _e
 
     engine, api_headers, manager_list = _load_config()
     _ensure_freshness_table(engine)
