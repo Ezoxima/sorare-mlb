@@ -643,7 +643,7 @@ div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] div[da
                     st.session_state[_excl_key] = []
                     st.rerun()
 
-    for _, row in _df_expanded.iterrows():
+    for _row_i, (_, row) in enumerate(_df_expanded.iterrows()):
         _slug  = row["player_slug"]
         _sea   = row.get("_card_season", "")
         _ser     = row.get("_card_serial", "")
@@ -779,7 +779,7 @@ div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] div[da
             with _cbx:
                 _btn_lbl  = "↩" if _excl else "✕"
                 _btn_help = "Réintégrer" if _excl else "Exclure"
-                _btn_key  = f"excl_{_slug}_{_sea}_{_ser}_{_day_key}"
+                _btn_key  = f"excl_{_slug}_{_sea}_{_ser}_{_day_key}_{_row_i}"
                 if st.button(_btn_lbl, key=_btn_key, help=_btn_help):
                     if _excl:
                         st.session_state[_excl_key] = [s for s in st.session_state[_excl_key]

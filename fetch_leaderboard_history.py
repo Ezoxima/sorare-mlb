@@ -303,9 +303,22 @@ def run(since_gw: int = 119) -> pd.DataFrame:
     else:
         df_arena = pd.DataFrame(all_rows)
 
-    # ── 4. Fusion avec Hot Streak ─────────────────────────────────────────────
-    df_hs  = build_hot_streak_df()
-    df_out = pd.concat([df_arena, df_hs], ignore_index=True)
+    # ── 4. Fusion avec données existantes + Hot Streak ───────────────────────
+    df_hs = build_hot_streak_df()
+
+    if OUT_FILE.exists() and not df_arena.empty:
+        df_existing = pd.read_parquet(OUT_FILE)
+        gw_min_new  = int(df_arena["gw_int"].min())
+        df_keep     = df_existing[
+            (df_existing["source"] != "arena") |
+            (df_existing["gw_int"].isna()) |
+            (df_existing["gw_int"] < gw_min_new)
+        ]
+        df_out = pd.concat([df_keep, df_arena, df_hs], ignore_index=True)
+        print(f"  Merge : {len(df_keep)} lignes conservées + {len(df_arena)} nouvelles")
+    else:
+        df_out = pd.concat([df_arena, df_hs], ignore_index=True)
+
     df_out.to_parquet(OUT_FILE, index=False)
     print(f"\n  {len(df_arena)} lignes arena + {len(df_hs)} seuils Hot Streak -> {OUT_FILE.name}")
     return df_out

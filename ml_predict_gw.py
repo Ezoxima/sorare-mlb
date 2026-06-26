@@ -167,16 +167,28 @@ def run(engine=None):
     upcoming_gw = int(gw_row["gw_int"])
     print(f"  GW{upcoming_gw}  ({gw_row['gw_start']} -> {gw_row['gw_end']})")
 
-    # Nb de matchs par equipe dans la GW
+    # Nb de matchs par equipe dans leur prochaine GW respective
+    # (differentes equipes peuvent etre sur des GW differentes simultanement)
     team_games = pd.read_sql("""
-        SELECT team_slug, COUNT(*)::int AS n_games
+        WITH team_next_gw AS (
+            SELECT team_slug, MIN(gw_int) AS next_gw
+            FROM (
+                SELECT home_team_slug AS team_slug, gw_int FROM mlb.games WHERE game_date >= CURRENT_DATE
+                UNION ALL
+                SELECT away_team_slug,               gw_int FROM mlb.games WHERE game_date >= CURRENT_DATE
+            ) t
+            GROUP BY team_slug
+        )
+        SELECT t.team_slug, COUNT(*)::int AS n_games
         FROM (
-            SELECT home_team_slug AS team_slug FROM mlb.games WHERE gw_int = %s
+            SELECT g.home_team_slug AS team_slug
+            FROM mlb.games g JOIN team_next_gw tn ON g.home_team_slug = tn.team_slug AND g.gw_int = tn.next_gw
             UNION ALL
-            SELECT away_team_slug               FROM mlb.games WHERE gw_int = %s
+            SELECT g.away_team_slug
+            FROM mlb.games g JOIN team_next_gw tn ON g.away_team_slug = tn.team_slug AND g.gw_int = tn.next_gw
         ) t
-        GROUP BY team_slug
-    """, engine, params=(upcoming_gw, upcoming_gw))
+        GROUP BY t.team_slug
+    """, engine)
     team_n    = team_games.set_index("team_slug")["n_games"].to_dict()
     gw_teams  = tuple(team_n.keys())
 
@@ -300,10 +312,24 @@ def run(engine=None):
     bat_hand_map: dict = bh_df.set_index("player_slug")["bat_hand"].to_dict()
 
     upg = pd.read_sql("""
-        SELECT game_id, game_date, home_team_slug, away_team_slug,
-               home_probable_pitcher, away_probable_pitcher
-        FROM mlb.games WHERE gw_int = %s
-    """, engine, params=(upcoming_gw,))
+        WITH team_next_gw AS (
+            SELECT team_slug, MIN(gw_int) AS next_gw
+            FROM (
+                SELECT home_team_slug AS team_slug, gw_int FROM mlb.games WHERE game_date >= CURRENT_DATE
+                UNION ALL
+                SELECT away_team_slug,               gw_int FROM mlb.games WHERE game_date >= CURRENT_DATE
+            ) t
+            GROUP BY team_slug
+        )
+        SELECT DISTINCT g.game_id, g.game_date, g.home_team_slug, g.away_team_slug,
+                        g.home_probable_pitcher, g.away_probable_pitcher
+        FROM mlb.games g
+        WHERE EXISTS (
+            SELECT 1 FROM team_next_gw th WHERE th.team_slug = g.home_team_slug AND th.next_gw = g.gw_int
+        ) OR EXISTS (
+            SELECT 1 FROM team_next_gw ta WHERE ta.team_slug = g.away_team_slug AND ta.next_gw = g.gw_int
+        )
+    """, engine)
     pit_slugs_up: set = set()
     if not upg.empty:
         pit_slugs_up.update(upg["home_probable_pitcher"].dropna())
@@ -342,12 +368,25 @@ def run(engine=None):
         }
 
     weather_df = pd.read_sql("""
-        SELECT w.game_id, w.temperature_f, w.wind_speed_mph,
+        WITH team_next_gw AS (
+            SELECT team_slug, MIN(gw_int) AS next_gw
+            FROM (
+                SELECT home_team_slug AS team_slug, gw_int FROM mlb.games WHERE game_date >= CURRENT_DATE
+                UNION ALL
+                SELECT away_team_slug,               gw_int FROM mlb.games WHERE game_date >= CURRENT_DATE
+            ) t
+            GROUP BY team_slug
+        )
+        SELECT DISTINCT w.game_id, w.temperature_f, w.wind_speed_mph,
                w.wind_label, w.condition
         FROM mlb.game_weather w
         JOIN mlb.games g ON w.game_id = g.game_id
-        WHERE g.gw_int = %s
-    """, engine, params=(upcoming_gw,))
+        WHERE EXISTS (
+            SELECT 1 FROM team_next_gw th WHERE th.team_slug = g.home_team_slug AND th.next_gw = g.gw_int
+        ) OR EXISTS (
+            SELECT 1 FROM team_next_gw ta WHERE ta.team_slug = g.away_team_slug AND ta.next_gw = g.gw_int
+        )
+    """, engine)
     weather_map: dict = {
         row["game_id"]: row.to_dict()
         for _, row in weather_df.iterrows()

@@ -649,12 +649,16 @@ def render(ctx: dict) -> None:
         _ar9_avg   = load_player_avg_scores(_ar9_slugs, FENETRE_OPTIONS[fenetre]) if _ar9_slugs else pd.DataFrame()
         _ar9_smap  = _ar9_avg.set_index("player_slug")["avg_score"].to_dict() if not _ar9_avg.empty else {}
 
-        _ar9_ngw_raw = (
-            _df_ar9["_n_games_gw"].fillna(1.0)
-            if "_n_games_gw" in _df_ar9.columns
-            else pd.Series(1.0, index=_df_ar9.index)
-        )
+        # Utiliser _tsched8_len (API live) en priorité, fallback sur n_games_gw du parquet
         _ar9_is_pitcher = _df_ar9["position_agg"].isin(["SP", "RP"])
+        if _tsched8_len:
+            _ar9_ngw_raw = _df_ar9["active_club_slug"].map(
+                lambda t: float(_tsched8_len.get(t, 1))
+            )
+        elif "_n_games_gw" in _df_ar9.columns:
+            _ar9_ngw_raw = _df_ar9["_n_games_gw"].fillna(1.0)
+        else:
+            _ar9_ngw_raw = pd.Series(1.0, index=_df_ar9.index)
         _ar9_ngw = _ar9_ngw_raw.where(~_ar9_is_pitcher, other=1.0)
 
         _df_ar9["proj_score_hist"]   = (_df_ar9["player_slug"].map(_ar9_smap).fillna(0.0) * _ar9_ngw).round(1)
